@@ -42,7 +42,7 @@ export function useSchool() {
   });
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <nav className="space-y-1">
@@ -69,7 +69,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarBody({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const { profile, primaryRole, signOut } = useAuth();
   const { data: school } = useSchool();
   const navigate = useNavigate();
@@ -126,8 +126,8 @@ export function AppShell({
   children,
 }: {
   title: string;
-  description?: string;
-  actions?: ReactNode;
+  description?: string | undefined;
+  actions?: ReactNode | undefined;
   children: ReactNode;
 }) {
   const { loading, profile } = useAuth();
@@ -190,7 +190,7 @@ export function EmptyState({
   icon: typeof Users;
   title: string;
   description: string;
-  action?: ReactNode;
+  action?: ReactNode | undefined;
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
