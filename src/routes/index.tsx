@@ -92,10 +92,10 @@ function Landing() {
             ) : (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/auth" search={{ mode: "login", redirect: undefined }}>Log in</Link>
+                  <Link to="/auth">Log in</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>Get Started</Link>
+                  <Link to="/auth">Get Started</Link>
                 </Button>
               </>
             )}
@@ -119,7 +119,7 @@ function Landing() {
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">
-                <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
+                <Link to="/auth">
                   Get Started <ArrowRight className="size-4" />
                 </Link>
               </Button>
@@ -231,7 +231,7 @@ function Landing() {
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
+              <Link to="/auth">
                 Get Started <ArrowRight className="size-4" />
               </Link>
             </Button>
