@@ -70,9 +70,9 @@ function AuthPage() {
     const fullName = z.string().trim().min(2, "Enter your full name").max(120).safeParse(form.get("full_name"));
     const email = emailSchema.safeParse(form.get("email"));
     const password = passwordSchema.safeParse(form.get("password"));
-    if (!fullName.success) return toast.error(fullName.error.issues[0]!.message);
-    if (!email.success) return toast.error(email.error.issues[0]!.message);
-    if (!password.success) return toast.error(password.error.issues[0]!.message);
+    if (!fullName.success) { toast.error(fullName.error.issues[0]!.message); return; }
+    if (!email.success) { toast.error(email.error.issues[0]!.message); return; }
+    if (!password.success) { toast.error(password.error.issues[0]!.message); return; }
 
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
@@ -100,13 +100,13 @@ function AuthPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const email = emailSchema.safeParse(form.get("email"));
-    if (!email.success) return toast.error(email.error.issues[0]!.message);
+    if (!email.success) { toast.error(email.error.issues[0]!.message); return; }
     setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.data, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Password reset link sent. Check your inbox.");
   }
 
