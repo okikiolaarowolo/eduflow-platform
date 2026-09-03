@@ -55,15 +55,15 @@ function DashboardPage() {
     queryKey: ["dashboard", schoolId],
     enabled: !!schoolId,
     queryFn: async () => {
-      const id = schoolId!;
+      if (!schoolId) throw new Error("A school is required to load the dashboard.");
       const [students, teachers, classes, subjects, sessions, terms, activity] = await Promise.all([
-        api.students(id),
-        api.teachers(id),
-        api.classes(id),
-        api.subjects(id),
-        api.sessions(id),
-        api.terms(id),
-        api.activity(id),
+        api.students(schoolId),
+        api.teachers(schoolId),
+        api.classes(schoolId),
+        api.subjects(schoolId),
+        api.sessions(schoolId),
+        api.terms(schoolId),
+        api.activity(schoolId),
       ]);
       return { students, teachers, classes, subjects, sessions, terms, activity };
     },
@@ -75,36 +75,55 @@ function DashboardPage() {
 
   return (
     <AppShell title="Dashboard" description="Live overview of your school">
-      {q.isLoading ? (
+      {!schoolId ? (
+        <div className="py-16">
+          <EmptyState
+            icon={CalendarDays}
+            title="Complete your school setup"
+            description="Finish onboarding before opening the school dashboard."
+            action={
+              <Link to="/onboarding" className="text-sm font-medium text-primary">
+                Continue onboarding →
+              </Link>
+            }
+          />
+        </div>
+      ) : q.isLoading ? (
         <div className="flex justify-center py-24">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : q.isError ? (
-        <p className="text-sm text-destructive">Could not load dashboard data.</p>
+        <p className="text-sm text-destructive">Could not load dashboard data. Please refresh and try again.</p>
+      ) : !data ? (
+        <EmptyState
+          icon={Activity}
+          title="Dashboard data unavailable"
+          description="There is no dashboard data to display yet."
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Students"
-              value={data!.students.filter((s) => !s.is_archived).length}
+              value={data.students.filter((s) => !s.is_archived).length}
               icon={Users}
               to="/students"
             />
             <StatCard
               label="Teachers"
-              value={data!.teachers.filter((t) => t.is_active).length}
+              value={data.teachers.filter((t) => t.is_active).length}
               icon={GraduationCap}
               to="/teachers"
             />
             <StatCard
               label="Classes"
-              value={data!.classes.filter((c) => !c.is_archived).length}
+              value={data.classes.filter((c) => !c.is_archived).length}
               icon={LayoutGrid}
               to="/classes"
             />
             <StatCard
               label="Subjects"
-              value={data!.subjects.filter((s) => !s.is_archived).length}
+              value={data.subjects.filter((s) => !s.is_archived).length}
               icon={BookOpen}
               to="/subjects"
             />
@@ -139,7 +158,7 @@ function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {data!.activity.length === 0 ? (
+                {data.activity.length === 0 ? (
                   <EmptyState
                     icon={Activity}
                     title="No activity yet"
@@ -147,7 +166,7 @@ function DashboardPage() {
                   />
                 ) : (
                   <ul className="space-y-3">
-                    {data!.activity.map((item) => (
+                    {data.activity.map((item) => (
                       <li key={item.id} className="flex items-start gap-3 text-sm">
                         <Badge variant="secondary" className="mt-0.5 shrink-0 capitalize">
                           {item.action}
@@ -155,7 +174,7 @@ function DashboardPage() {
                         <div className="min-w-0">
                           <p className="truncate">{item.description ?? item.entity}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.actor_name ?? "System"} ·{" "}
+                            {item.actor_name ?? "System"} · {" "}
                             {new Date(item.created_at).toLocaleString()}
                           </p>
                         </div>
