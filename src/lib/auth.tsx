@@ -51,6 +51,12 @@ const ROLE_PRIORITY: AppRole[] = [
   "parent",
 ];
 
+function getDisplayName(user: User) {
+  const metadata = user.user_metadata as Record<string, unknown> | undefined;
+  const name = metadata?.full_name ?? metadata?.name;
+  return typeof name === "string" && name.trim() ? name.trim() : user.email ?? "EduFlow User";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -63,14 +69,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles([]);
       return;
     }
-    const [{ data: profileRow }, { data: roleRows }] = await Promise.all([
-      supabase
+
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user || user.id !== userId) {
+      setProfile(null);
+      setRoles([]);
+      return;
+    }
+
+    let { data: profileRow } = await supabase
+      .from("profiles")
+      .select("id, school_id, full_name, email, phone, avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profileRow) {
+      const { data: createdProfile, error } = await supabase
         .from("profiles")
+        .insert({
+          id: userId,
+          full_name: getDisplayName(user),
+          email: user.email ?? null,
+          school_id: null,
+        })
         .select("id, school_id, full_name, email, phone, avatar_url")
-        .eq("id", userId)
-        .maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-    ]);
+        .single();
+
+      if (!error) profileRow = createdProfile;
+    }
+
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
     setProfile((profileRow as Profile | null) ?? null);
     setRoles(((roleRows ?? []) as { role: AppRole }[]).map((r) => r.role));
   };
