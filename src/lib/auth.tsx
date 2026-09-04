@@ -170,6 +170,8 @@ export function homeForRole(role: AppRole | null): string {
     case "student":
     case "parent":
       return "/portal";
+    case "teacher":
+      return "/teacher-dashboard";
     default:
       return "/dashboard";
   }
