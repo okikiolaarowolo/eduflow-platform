@@ -20,6 +20,7 @@ const NAV = [
   { to: "/operations", label: "Operations", icon: CalendarDays },
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
   { to: "/results", label: "Results & Grading", icon: FileText },
+  { to: "/report-cards", label: "Report Cards", icon: FileText },
   { to: "/timetable", label: "Timetable", icon: CalendarDays },
   { to: "/ai-tutor", label: "EduFlow AI", icon: Bot },
   { to: "/notifications", label: "Notifications", icon: Bell },
