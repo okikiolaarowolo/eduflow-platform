@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ const NAV = [
   { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: ["super_admin", "school_admin", "principal", "teacher", "student", "parent"] as AppRole[] },
   { to: "/learning", label: "Learning Materials", icon: BookOpen, roles: ["super_admin", "school_admin", "principal", "teacher", "student"] as AppRole[] },
   { to: "/analytics", label: "Analytics", icon: BarChart3, roles: ["super_admin", "school_admin", "principal"] as AppRole[] },
+  { to: "/audit", label: "Audit Log", icon: History, roles: ["super_admin", "school_admin", "principal"] as AppRole[] },
   { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["super_admin", "school_admin", "principal", "teacher", "student"] as AppRole[] },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["super_admin", "school_admin", "principal"] as AppRole[] },
