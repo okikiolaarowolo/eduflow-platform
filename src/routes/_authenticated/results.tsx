@@ -1,0 +1,43 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
+import { AppShell, EmptyState, useSchoolId } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/queries";
+import { useAuth } from "@/lib/auth";
+
+export const Route = createFileRoute("/_authenticated/results")({ component: ResultsPage });
+
+function gradeFor(score: number) { if (score >= 80) return "A1"; if (score >= 75) return "B2"; if (score >= 70) return "B3"; if (score >= 65) return "C4"; if (score >= 60) return "C5"; if (score >= 55) return "C6"; if (score >= 50) return "D7"; if (score >= 45) return "E8"; return "F9"; }
+
+function ResultsPage() {
+  const schoolId = useSchoolId();
+  const { user, isManager } = useAuth();
+  const qc = useQueryClient();
+  const [assessmentId, setAssessmentId] = useState("");
+  const [scores, setScores] = useState<Record<string, string>>({});
+  const assessments = useQuery({ queryKey: ["assessments", schoolId], enabled: !!schoolId, queryFn: () => api.assessments(schoolId!) });
+  const students = useQuery({ queryKey: ["students", schoolId], enabled: !!schoolId, queryFn: () => api.students(schoolId!) });
+  const selected = assessments.data?.find(a => a.id === assessmentId);
+  const classStudents = useMemo(() => selected ? (students.data ?? []).filter(s => s.class_id === selected.class_id && !s.is_archived) : [], [students.data, selected]);
+  const save = useMutation({ mutationFn: async () => {
+    if (!schoolId || !selected) throw new Error("Select an assessment");
+    const max = Number(selected.max_score);
+    const rows = classStudents.map(s => { const score = Math.max(0, Math.min(max, Number(scores[s.id] ?? 0))); return { school_id: schoolId, assessment_id: selected.id, student_id: s.id, score, grade: gradeFor((score / max) * 100), graded_by: user?.id }; });
+    const { error } = await supabase.from("assessment_scores").upsert(rows, { onConflict: "assessment_id,student_id" });
+    if (error) throw new Error(error.message);
+  }, onSuccess: async () => { toast.success("Scores saved"); await qc.invalidateQueries({ queryKey: ["results", schoolId] }); }, onError: e => toast.error(e.message) });
+
+  return <AppShell title="Results & Grading" description="Enter assessment scores and calculate grades">
+    <div className="space-y-5">
+      <Card><CardHeader><CardTitle>Choose assessment</CardTitle></CardHeader><CardContent><Select value={assessmentId} onValueChange={v=>{setAssessmentId(v);setScores({});}}><SelectTrigger><SelectValue placeholder="Select assessment"/></SelectTrigger><SelectContent>{(assessments.data??[]).map(a=><SelectItem key={a.id} value={a.id}>{a.title} · {a.max_score} marks</SelectItem>)}</SelectContent></Select></CardContent></Card>
+      {!assessmentId ? <EmptyState icon={FileText} title="Select an assessment" description="Choose an assessment to enter results."/> : classStudents.length === 0 ? <EmptyState icon={FileText} title="No students in this class" description="Add active students to the assessment class first."/> : <Card><CardHeader><CardTitle>{selected?.title}</CardTitle></CardHeader><CardContent className="space-y-2">{classStudents.map(s=>{const value=scores[s.id] ?? ""; const pct=selected ? Number(value||0)/Number(selected.max_score)*100 : 0; return <div key={s.id} className="grid grid-cols-[1fr_110px_60px] items-center gap-3 rounded-lg border p-3"><div><p className="font-medium">{s.first_name} {s.last_name}</p><p className="text-xs text-muted-foreground">{s.student_id}</p></div><Input type="number" min="0" max={selected?.max_score} value={value} onChange={e=>setScores({...scores,[s.id]:e.target.value})} placeholder="Score"/><span className="text-sm font-semibold">{value ? gradeFor(pct) : "—"}</span></div>})}<Button className="mt-3" onClick={()=>save.mutate()} disabled={save.isPending || !isManager}>{save.isPending?<Loader2 className="size-4 animate-spin"/>:<Save className="size-4"/>}{isManager?"Save results":"Manager permission required"}</Button></CardContent></Card>}
+    </div>
+  </AppShell>;
+}
