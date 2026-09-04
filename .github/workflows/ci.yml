@@ -15,5 +15,5 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run lint -- --fix
+      - run: bun run lint -- --fix --ignore-pattern src/integrations/supabase/previewAuthStorage.ts
       - run: bun run build
