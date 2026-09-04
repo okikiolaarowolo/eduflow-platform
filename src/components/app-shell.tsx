@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, Users } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,9 @@ const NAV = [
   { to: "/results", label: "Results & Grading", icon: FileText },
   { to: "/timetable", label: "Timetable", icon: CalendarDays },
   { to: "/ai-tutor", label: "EduFlow AI", icon: Bot },
+  { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/profile", label: "My Profile", icon: UserRound },
 ] as const;
 
 export function useSchoolId() { const { profile } = useAuth(); return profile?.school_id ?? null; }
