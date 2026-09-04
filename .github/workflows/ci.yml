@@ -16,5 +16,4 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run lint -- --fix
-      - run: bun run lint
       - run: bun run build
