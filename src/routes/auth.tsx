@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { GraduationCap, Loader2 } from "lucide-react";
+import { GraduationCap, Loader2, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ function AuthPage() {
   const { session, primaryRole, loading, profile } = useAuth();
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("login");
+  const [signupEmailSent, setSignupEmailSent] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading || !session) return;
@@ -75,11 +76,12 @@ function AuthPage() {
     if (!password.success) { toast.error(password.error.issues[0]!.message); return; }
 
     setBusy(true);
+    setSignupEmailSent(null);
     const { data, error } = await supabase.auth.signUp({
       email: email.data,
       password: password.data,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth`,
         data: { full_name: fullName.data },
       },
     });
@@ -89,8 +91,8 @@ function AuthPage() {
       return;
     }
     if (!data.session) {
-      toast.success("Check your email to confirm your account before signing in.");
-      setTab("login");
+      setSignupEmailSent(email.data);
+      toast.success("Account created. Check your email to confirm your account.");
       return;
     }
     toast.success("Account created — let's set up your school.");
@@ -184,31 +186,45 @@ function AuthPage() {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="su-name">Full name</Label>
-                    <Input id="su-name" name="full_name" required maxLength={120} />
+                {signupEmailSent ? (
+                  <div className="mt-4 rounded-xl border border-border bg-muted/40 p-6 text-center">
+                    <MailCheck className="mx-auto size-10 text-primary" />
+                    <h3 className="mt-4 font-display text-lg font-semibold">Check your email</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      We created your account. Open the confirmation link sent to <strong>{signupEmailSent}</strong>.
+                      After confirming, you will return to EduFlow AI and continue to school setup.
+                    </p>
+                    <Button className="mt-5 w-full" variant="outline" onClick={() => setSignupEmailSent(null)}>
+                      Use another email
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="su-email">Email</Label>
-                    <Input id="su-email" name="email" type="email" autoComplete="email" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="su-password">Password</Label>
-                    <Input
-                      id="su-password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      minLength={8}
-                    />
-                    <p className="text-xs text-muted-foreground">At least 8 characters.</p>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={busy}>
-                    {busy && <Loader2 className="size-4 animate-spin" />} Create account
-                  </Button>
-                </form>
+                ) : (
+                  <form onSubmit={handleSignup} className="mt-4 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="su-name">Full name</Label>
+                      <Input id="su-name" name="full_name" required maxLength={120} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="su-email">Email</Label>
+                      <Input id="su-email" name="email" type="email" autoComplete="email" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="su-password">Password</Label>
+                      <Input
+                        id="su-password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                      />
+                      <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={busy}>
+                      {busy && <Loader2 className="size-4 animate-spin" />} Create account
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
 
               <TabsContent value="reset">
