@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bot, BookOpen, CalendarDays, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, Users } from "lucide-react";
+import { Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,10 @@ const NAV = [
   { to: "/classes", label: "Classes", icon: LayoutGrid },
   { to: "/subjects", label: "Subjects", icon: BookOpen },
   { to: "/operations", label: "Operations", icon: CalendarDays },
-  { to: "/ai", label: "EduFlow AI", icon: Bot },
+  { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
+  { to: "/results", label: "Results & Grading", icon: FileText },
+  { to: "/timetable", label: "Timetable", icon: CalendarDays },
+  { to: "/ai-tutor", label: "EduFlow AI", icon: Bot },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
