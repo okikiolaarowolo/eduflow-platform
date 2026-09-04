@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3 } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin", label: "Platform Admin", icon: ShieldCheck, roles: ["super_admin"] as AppRole[] },
   { to: "/teacher-dashboard", label: "Teacher Workspace", icon: Presentation, roles: ["teacher"] as AppRole[] },
   { to: "/portal", label: "My Portal", icon: GraduationCap, roles: ["student", "parent"] as AppRole[] },
   { to: "/students", label: "Students", icon: Users, roles: ["super_admin", "school_admin", "principal", "teacher"] as AppRole[] },
