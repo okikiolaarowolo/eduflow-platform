@@ -2,177 +2,19 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole =
-  | "super_admin"
-  | "school_admin"
-  | "principal"
-  | "teacher"
-  | "student"
-  | "parent";
-
-export const ROLE_LABELS: Record<AppRole, string> = {
-  super_admin: "Super Admin",
-  school_admin: "School Admin",
-  principal: "Principal",
-  teacher: "Teacher",
-  student: "Student",
-  parent: "Parent",
-};
-
-export type Profile = {
-  id: string;
-  school_id: string | null;
-  full_name: string;
-  email: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-};
-
-type AuthState = {
-  loading: boolean;
-  session: Session | null;
-  user: User | null;
-  profile: Profile | null;
-  roles: AppRole[];
-  primaryRole: AppRole | null;
-  isManager: boolean;
-  refresh: () => Promise<void>;
-  signOut: () => Promise<void>;
-};
-
+export type AppRole = "super_admin" | "school_admin" | "principal" | "teacher" | "student" | "parent";
+export const ROLE_LABELS: Record<AppRole, string> = { super_admin: "Super Admin", school_admin: "School Admin", principal: "Principal", teacher: "Teacher", student: "Student", parent: "Parent" };
+export type Profile = { id: string; school_id: string | null; full_name: string; email: string | null; phone: string | null; avatar_url: string | null };
+type AuthState = { loading: boolean; session: Session | null; user: User | null; profile: Profile | null; roles: AppRole[]; primaryRole: AppRole | null; isManager: boolean; refresh: () => Promise<void>; signOut: () => Promise<void> };
 const AuthContext = createContext<AuthState | null>(null);
-
-const ROLE_PRIORITY: AppRole[] = [
-  "super_admin",
-  "school_admin",
-  "principal",
-  "teacher",
-  "student",
-  "parent",
-];
-
-function getDisplayName(user: User) {
-  const metadata = user.user_metadata as Record<string, unknown> | undefined;
-  const name = metadata?.full_name ?? metadata?.name;
-  return typeof name === "string" && name.trim() ? name.trim() : user.email ?? "EduFlow User";
-}
-
+const ROLE_PRIORITY: AppRole[] = ["super_admin", "school_admin", "principal", "teacher", "student", "parent"];
+function getDisplayName(user: User) { const metadata = user.user_metadata as Record<string, unknown> | undefined; const name = metadata?.full_name ?? metadata?.name; return typeof name === "string" && name.trim() ? name.trim() : user.email ?? "EduFlow User"; }
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [roles, setRoles] = useState<AppRole[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadContext = async (userId: string | undefined) => {
-    if (!userId) {
-      setProfile(null);
-      setRoles([]);
-      return;
-    }
-
-    const { data: authData } = await supabase.auth.getUser();
-    const user = authData.user;
-    if (!user || user.id !== userId) {
-      setProfile(null);
-      setRoles([]);
-      return;
-    }
-
-    let { data: profileRow } = await supabase
-      .from("profiles")
-      .select("id, school_id, full_name, email, phone, avatar_url")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (!profileRow) {
-      const { data: createdProfile, error } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          full_name: getDisplayName(user),
-          email: user.email ?? null,
-          school_id: null,
-        })
-        .select("id, school_id, full_name, email, phone, avatar_url")
-        .single();
-
-      if (!error) profileRow = createdProfile;
-    }
-
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-
-    setProfile((profileRow as Profile | null) ?? null);
-    setRoles(((roleRows ?? []) as { role: AppRole }[]).map((r) => r.role));
-  };
-
-  useEffect(() => {
-    let active = true;
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!active) return;
-      setSession(nextSession);
-      if (!nextSession) {
-        setProfile(null);
-        setRoles([]);
-      } else {
-        void loadContext(nextSession.user.id);
-      }
-    });
-
-    void (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) return;
-      setSession(data.session);
-      await loadContext(data.session?.user.id);
-      setLoading(false);
-    })();
-
-    return () => {
-      active = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  const value = useMemo<AuthState>(() => {
-    const primaryRole = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null;
-    return {
-      loading,
-      session,
-      user: session?.user ?? null,
-      profile,
-      roles,
-      primaryRole,
-      isManager: roles.some((r) => ["super_admin", "school_admin", "principal"].includes(r)),
-      refresh: async () => {
-        const { data } = await supabase.auth.getUser();
-        await loadContext(data.user?.id);
-      },
-      signOut: async () => {
-        await supabase.auth.signOut();
-      },
-    };
-  }, [loading, session, profile, roles]);
-
+  const [session, setSession] = useState<Session | null>(null); const [profile, setProfile] = useState<Profile | null>(null); const [roles, setRoles] = useState<AppRole[]>([]); const [loading, setLoading] = useState(true);
+  const loadContext = async (userId: string | undefined) => { if (!userId) { setProfile(null); setRoles([]); return; } const { data: authData } = await supabase.auth.getUser(); const user = authData.user; if (!user || user.id !== userId) { setProfile(null); setRoles([]); return; } let { data: profileRow } = await supabase.from("profiles").select("id, school_id, full_name, email, phone, avatar_url").eq("id", userId).maybeSingle(); if (!profileRow) { const { data: createdProfile, error } = await supabase.from("profiles").insert({ id: userId, full_name: getDisplayName(user), email: user.email ?? null, school_id: null }).select("id, school_id, full_name, email, phone, avatar_url").single(); if (!error) profileRow = createdProfile; } const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", userId); setProfile((profileRow as Profile | null) ?? null); setRoles(((roleRows ?? []) as { role: AppRole }[]).map((r) => r.role)); };
+  useEffect(() => { let active = true; const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => { if (!active) return; setSession(nextSession); if (!nextSession) { setProfile(null); setRoles([]); } else void loadContext(nextSession.user.id); }); void (async () => { const { data } = await supabase.auth.getSession(); if (!active) return; setSession(data.session); await loadContext(data.session?.user.id); setLoading(false); })(); return () => { active = false; sub.subscription.unsubscribe(); }; }, []);
+  const value = useMemo<AuthState>(() => { const primaryRole = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null; return { loading, session, user: session?.user ?? null, profile, roles, primaryRole, isManager: roles.some((r) => ["super_admin", "school_admin", "principal"].includes(r)), refresh: async () => { const { data } = await supabase.auth.getUser(); await loadContext(data.user?.id); }, signOut: async () => { await supabase.auth.signOut(); } }; }, [loading, session, profile, roles]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
-}
-
-export function homeForRole(role: AppRole | null): string {
-  switch (role) {
-    case "student":
-    case "parent":
-      return "/portal";
-    case "teacher":
-      return "/teacher-dashboard";
-    default:
-      return "/dashboard";
-  }
-}
+export function useAuth() { const ctx = useContext(AuthContext); if (!ctx) throw new Error("useAuth must be used inside AuthProvider"); return ctx; }
+export function homeForRole(role: AppRole | null): string { switch (role) { case "super_admin": return "/admin"; case "student": case "parent": return "/portal"; case "teacher": return "/teacher-dashboard"; default: return "/dashboard"; } }
