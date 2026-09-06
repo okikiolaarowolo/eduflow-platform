@@ -34,10 +34,12 @@ serve(async (req) => {
     if (isStudent && settings?.student_tutor_enabled === false && !isManager) return json({ error: "The student AI tutor is disabled for this school." }, 403);
     if (isTeacher && settings?.teacher_assistant_enabled === false && !isManager) return json({ error: "The teacher AI assistant is disabled for this school." }, 403);
 
-    const { data: usage, error: usageError } = await supabase.rpc("ai_monthly_usage", { p_school_id: conversation.school_id });
-    if (usageError) return json({ error: "Unable to check AI usage limits." }, 503);
-    const monthlyLimit = Math.max(0, Number(settings?.monthly_token_limit ?? 100000));
-    if (monthlyLimit > 0 && Number(usage ?? 0) >= monthlyLimit) return json({ error: "The school's monthly AI usage limit has been reached. Ask an administrator to review the AI settings." }, 429);
+    const { data: usageStatus, error: usageError } = await supabase.rpc("ai_usage_status", { p_school_id: conversation.school_id });
+    if (usageError || !usageStatus?.[0]) return json({ error: "Unable to check AI usage limits." }, 503);
+    const usage = usageStatus[0];
+    if (usage.enabled === false) return json({ error: "EduFlow AI is disabled for this school." }, 403);
+    const monthlyLimit = Math.max(0, Number(usage.monthly_limit ?? settings?.monthly_token_limit ?? 100000));
+    if (monthlyLimit > 0 && Number(usage.used_tokens ?? 0) >= monthlyLimit) return json({ error: "The school's monthly AI usage limit has been reached. Ask an administrator to review the AI settings." }, 429);
 
     const { data: history } = await supabase.from("ai_messages").select("role,content").eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(30);
     const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -51,7 +53,9 @@ serve(async (req) => {
     const mode = conversation.mode || "tutor";
     const modeInstruction = mode === "question-generator" ? "Generate practice questions at the student's level and include answers separately." : mode === "explanation" ? "Explain the concept clearly using a simple example, then check understanding with one short question." : mode === "study-plan" ? "Create a practical study plan with topics, short sessions, review checkpoints, and practice tasks." : "Teach step-by-step and ask a short practice question after the explanation.";
     const system = `You are EduFlow AI, a safe academic assistant for secondary-school students. Use ${subjectName} context when relevant. Align explanations with standard secondary-school curricula. ${modeInstruction} Never invent grades or school records. Do not provide unsafe, sexual, hateful, or harmful content. Keep answers understandable and educational.`;
-    const messages = [{ role: "system", content: system }, ...(history ?? []).map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))];
+    const priorMessages = (history ?? []).map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }));
+    const lastMessage = priorMessages[priorMessages.length - 1];
+    const messages = [{ role: "system", content: system }, ...priorMessages, ...(lastMessage?.role === "user" && lastMessage.content === message ? [] : [{ role: "user", content: message }])];
 
     const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
     const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 900 }) });
@@ -61,6 +65,7 @@ serve(async (req) => {
     const inputTokens = Number(result.usage?.prompt_tokens ?? 0);
     const outputTokens = Number(result.usage?.completion_tokens ?? 0);
     const totalTokens = Number(result.usage?.total_tokens ?? inputTokens + outputTokens);
+    if (monthlyLimit > 0 && Number(usage.used_tokens ?? 0) + totalTokens > monthlyLimit) return json({ error: "This response would exceed the school's monthly AI limit. Please try again later or ask an administrator to review the limit." }, 429);
 
     const { error: usageInsertError } = await supabase.from("ai_usage").insert({ school_id: conversation.school_id, user_id: userData.user.id, feature: mode, model, input_tokens: inputTokens, output_tokens: outputTokens, estimated_cost: 0 });
     if (usageInsertError) return json({ error: "AI response was generated but usage could not be recorded." }, 500);
