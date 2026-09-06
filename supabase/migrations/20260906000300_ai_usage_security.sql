@@ -1,4 +1,4 @@
--- EduFlow AI: secure, tenant-scoped monthly usage accounting.
+-- EduFlow AI: secure, tenant-scoped usage and private AI data.
 
 CREATE OR REPLACE FUNCTION public.ai_monthly_usage(p_school_id uuid)
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -12,6 +12,26 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION public.ai_monthly_usage(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.ai_monthly_usage(uuid) TO authenticated;
+
+-- One tenant-scoped RPC gives the Edge Function the exact controls it needs.
+CREATE OR REPLACE FUNCTION public.ai_usage_status(p_school_id uuid)
+RETURNS TABLE(enabled boolean, used_tokens bigint, plan_token_limit integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_school_id uuid;
+BEGIN
+  v_school_id := public.current_school_id();
+  IF v_school_id IS NULL OR p_school_id IS DISTINCT FROM v_school_id THEN RAISE EXCEPTION 'Forbidden'; END IF;
+  RETURN QUERY
+  SELECT COALESCE(s.enabled, true),
+         COALESCE((SELECT SUM(COALESCE(u.input_tokens,0)+COALESCE(u.output_tokens,0))::bigint FROM public.ai_usage u WHERE u.school_id=p_school_id AND u.created_at >= date_trunc('month',now()) AND u.created_at < date_trunc('month',now()) + interval '1 month'),0)::bigint,
+         sp.ai_tokens_monthly
+  FROM (SELECT 1) x
+  LEFT JOIN public.ai_settings s ON s.school_id=p_school_id
+  LEFT JOIN public.school_subscriptions ss ON ss.school_id=p_school_id
+  LEFT JOIN public.saas_plans sp ON sp.id=ss.plan_id;
+END; $$;
+REVOKE ALL ON FUNCTION public.ai_usage_status(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ai_usage_status(uuid) TO authenticated;
 
 -- Remove broad policies from the initial full-platform migration.
 DROP POLICY IF EXISTS ai_settings_manager ON public.ai_settings;
