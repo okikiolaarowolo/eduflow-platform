@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const NAV = [
   { to: "/teacher-dashboard", label: "Teacher Workspace", icon: Presentation, roles: ["teacher"] as AppRole[] }, { to: "/portal", label: "My Portal", icon: GraduationCap, roles: ["student", "parent"] as AppRole[] },
   { to: "/students", label: "Students", icon: Users, roles: SCHOOL_STAFF }, { to: "/teachers", label: "Teachers", icon: GraduationCap, roles: SCHOOL_MANAGERS }, { to: "/classes", label: "Classes", icon: LayoutGrid, roles: SCHOOL_STAFF }, { to: "/subjects", label: "Subjects", icon: BookOpen, roles: SCHOOL_STAFF },
   { to: "/operations", label: "Operations", icon: CalendarDays, roles: SCHOOL_STAFF }, { to: "/attendance", label: "Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS }, { to: "/results", label: "Results & Grading", icon: FileText, roles: SCHOOL_USERS }, { to: "/report-cards", label: "Report Cards", icon: FileText, roles: SCHOOL_USERS }, { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: SCHOOL_USERS },
-  { to: "/learning", label: "Learning Materials", icon: BookOpen, roles: SCHOOL_USERS.filter(r => r !== "parent") }, { to: "/analytics", label: "Analytics", icon: BarChart3, roles: SCHOOL_MANAGERS }, { to: "/audit", label: "Audit Log", icon: History, roles: SCHOOL_MANAGERS }, { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["school_admin", "principal", "teacher", "student"] as AppRole[] },
+  { to: "/learning", label: "Learning Materials", icon: BookOpen, roles: SCHOOL_USERS.filter(r => r !== "parent") }, { to: "/analytics", label: "Analytics", icon: BarChart3, roles: SCHOOL_MANAGERS }, { to: "/insights", label: "Academic Insights", icon: Lightbulb, roles: SCHOOL_MANAGERS }, { to: "/audit", label: "Audit Log", icon: History, roles: SCHOOL_MANAGERS }, { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["school_admin", "principal", "teacher", "student"] as AppRole[] },
   { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal, roles: SCHOOL_MANAGERS }, { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/settings", label: "Settings", icon: Settings, roles: SCHOOL_MANAGERS }, { to: "/profile", label: "My Profile", icon: UserRound },
 ] as const;
