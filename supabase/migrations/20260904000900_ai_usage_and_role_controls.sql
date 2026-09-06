@@ -29,7 +29,7 @@ CREATE POLICY assignments_teacher_insert ON public.assignments
   FOR INSERT TO authenticated
   WITH CHECK (
     school_id = public.current_school_id()
-    AND teacher_id IN (
+    AND assignments.teacher_id IN (
       SELECT t.id
       FROM public.teachers t
       WHERE t.user_id = auth.uid()
@@ -37,12 +37,12 @@ CREATE POLICY assignments_teacher_insert ON public.assignments
     )
     AND EXISTS (
       SELECT 1 FROM public.teacher_classes tc
-      WHERE tc.teacher_id = teacher_id
+      WHERE tc.teacher_id = assignments.teacher_id
         AND tc.class_id = assignments.class_id
     )
     AND EXISTS (
       SELECT 1 FROM public.teacher_subjects ts
-      WHERE ts.teacher_id = teacher_id
+      WHERE ts.teacher_id = assignments.teacher_id
         AND ts.subject_id = assignments.subject_id
     )
   );
