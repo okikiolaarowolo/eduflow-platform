@@ -38,8 +38,13 @@ serve(async (req) => {
     if (usageError || !usageStatus?.[0]) return json({ error: "Unable to check AI usage limits." }, 503);
     const usage = usageStatus[0];
     if (usage.enabled === false) return json({ error: "EduFlow AI is disabled for this school." }, 403);
-    const monthlyLimit = Math.max(0, Number(usage.monthly_limit ?? settings?.monthly_token_limit ?? 100000));
-    if (monthlyLimit > 0 && Number(usage.used_tokens ?? 0) >= monthlyLimit) return json({ error: "The school's monthly AI usage limit has been reached. Ask an administrator to review the AI settings." }, 429);
+    const settingsLimit = Math.max(0, Number(settings?.monthly_token_limit ?? 100000));
+    const planLimit = usage.plan_token_limit == null ? 0 : Math.max(0, Number(usage.plan_token_limit));
+    const configuredLimits = [settingsLimit, planLimit].filter((value) => value > 0);
+    const monthlyLimit = configuredLimits.length ? Math.min(...configuredLimits) : 0;
+    const currentUsage = Math.max(0, Number(usage.used_tokens ?? 0));
+    const maxOutputTokens = 900;
+    if (monthlyLimit > 0 && currentUsage + maxOutputTokens > monthlyLimit) return json({ error: "The school's remaining AI quota is too small for this request." }, 429);
 
     const { data: history } = await supabase.from("ai_messages").select("role,content").eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(30);
     const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -58,18 +63,19 @@ serve(async (req) => {
     const messages = [{ role: "system", content: system }, ...priorMessages, ...(lastMessage?.role === "user" && lastMessage.content === message ? [] : [{ role: "user", content: message }])];
 
     const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
-    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 900 }) });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: maxOutputTokens }) });
     if (!response.ok) return json({ error: `AI provider error (${response.status})` }, 502);
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content ?? "I could not generate a response. Please try again.";
     const inputTokens = Number(result.usage?.prompt_tokens ?? 0);
     const outputTokens = Number(result.usage?.completion_tokens ?? 0);
     const totalTokens = Number(result.usage?.total_tokens ?? inputTokens + outputTokens);
-    if (monthlyLimit > 0 && Number(usage.used_tokens ?? 0) + totalTokens > monthlyLimit) return json({ error: "This response would exceed the school's monthly AI limit. Please try again later or ask an administrator to review the limit." }, 429);
+    if (monthlyLimit > 0 && currentUsage + totalTokens > monthlyLimit) return json({ error: "This response would exceed the school's monthly AI limit. Please try again later or ask an administrator to review the limit." }, 429);
 
-    const { error: usageInsertError } = await supabase.from("ai_usage").insert({ school_id: conversation.school_id, user_id: userData.user.id, feature: mode, model, input_tokens: inputTokens, output_tokens: outputTokens, estimated_cost: 0 });
-    if (usageInsertError) return json({ error: "AI response was generated but usage could not be recorded." }, 500);
-    return json({ content: settings?.disclosure_text ? `${content}\n\n_${settings.disclosure_text}_` : content, tokens_used: totalTokens });
+    const estimatedCost = model.includes("gpt-4o-mini") ? ((inputTokens * 0.15 + outputTokens * 0.60) / 1000000) : 0;
+    const { error: usageInsertError } = await supabase.from("ai_usage").insert({ school_id: conversation.school_id, user_id: userData.user.id, feature: mode, model, input_tokens: inputTokens, output_tokens: outputTokens, estimated_cost: estimatedCost });
+    if (usageInsertError) return json({ error: "AI response was generated but usage could not be recorded. Please contact an administrator before retrying." }, 500);
+    return json({ content: settings?.disclosure_text ? `${content}\n\n_${settings.disclosure_text}_` : content, tokens_used: totalTokens, monthly_usage: currentUsage + totalTokens, monthly_limit: monthlyLimit });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Unexpected AI service error" }, 500);
   }
