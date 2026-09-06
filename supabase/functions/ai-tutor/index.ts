@@ -50,6 +50,12 @@ serve(async (req) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json({ error: "EduFlow AI is not configured yet. An administrator must add the AI provider key." }, 503);
 
+    // Server-side moderation prevents unsafe prompts from reaching the generation model.
+    const moderationResponse = await fetch("https://api.openai.com/v1/moderations", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "omni-moderation-latest", input: message }) });
+    if (!moderationResponse.ok) return json({ error: "AI safety check is temporarily unavailable." }, 503);
+    const moderation = await moderationResponse.json();
+    if (moderation.results?.[0]?.flagged) return json({ error: "I can help with safe, school-appropriate learning questions. Please rephrase your request." }, 400);
+
     let subjectName = "general school subjects";
     if (subjectId) {
       const { data: subject } = await supabase.from("subjects").select("name").eq("id", subjectId).eq("school_id", conversation.school_id).maybeSingle();
