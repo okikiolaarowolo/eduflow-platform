@@ -11,15 +11,10 @@ DECLARE
   v_school_id uuid;
   v_count integer := 0;
 BEGIN
-  SELECT school_id INTO v_school_id
-  FROM public.students
-  WHERE id = p_student_id;
+  SELECT school_id INTO v_school_id FROM public.students WHERE id = p_student_id;
 
   IF v_school_id IS NULL OR NOT EXISTS (
-    SELECT 1
-    FROM public.profiles pr
-    WHERE pr.id = auth.uid()
-      AND pr.school_id = v_school_id
+    SELECT 1 FROM public.profiles pr WHERE pr.id = auth.uid() AND pr.school_id = v_school_id
   ) THEN
     RAISE EXCEPTION 'Student is not in your school';
   END IF;
@@ -33,9 +28,7 @@ BEGIN
   END IF;
 
   DELETE FROM public.ai_learning_insights
-  WHERE student_id = p_student_id
-    AND school_id = v_school_id
-    AND insight_type = 'weak_subject';
+  WHERE student_id = p_student_id AND school_id = v_school_id AND insight_type = 'weak_subject';
 
   INSERT INTO public.ai_learning_insights (
     school_id, student_id, subject_id, insight_type, title, summary, evidence, confidence
@@ -53,16 +46,11 @@ BEGIN
       'score_count', COUNT(*),
       'severity', CASE WHEN AVG(sc.score) < 40 THEN 'high' ELSE 'medium' END
     ),
-    CASE WHEN AVG(sc.score) < 40 THEN 0.90 ELSE 0.80 END;
+    CASE WHEN AVG(sc.score) < 40 THEN 0.90 ELSE 0.80 END
   FROM public.assessment_scores sc
-  JOIN public.assessments a
-    ON a.id = sc.assessment_id
-   AND a.school_id = v_school_id
-  JOIN public.subjects s
-    ON s.id = a.subject_id
-   AND s.school_id = v_school_id
-  WHERE sc.school_id = v_school_id
-    AND sc.student_id = p_student_id
+  JOIN public.assessments a ON a.id = sc.assessment_id AND a.school_id = v_school_id
+  JOIN public.subjects s ON s.id = a.subject_id AND s.school_id = v_school_id
+  WHERE sc.school_id = v_school_id AND sc.student_id = p_student_id
   GROUP BY s.id, s.name
   HAVING AVG(sc.score) < 50;
 
@@ -76,21 +64,15 @@ GRANT EXECUTE ON FUNCTION public.refresh_student_learning_insights(uuid) TO auth
 
 CREATE OR REPLACE FUNCTION public.student_learning_summary(p_student_id uuid)
 RETURNS TABLE(subject_id uuid, subject_name text, average_score numeric, score_count bigint, needs_attention boolean)
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
   v_school_id uuid;
 BEGIN
-  SELECT school_id INTO v_school_id
-  FROM public.students
-  WHERE id = p_student_id;
+  SELECT school_id INTO v_school_id FROM public.students WHERE id = p_student_id;
 
   IF v_school_id IS NULL OR NOT EXISTS (
-    SELECT 1 FROM public.profiles pr
-    WHERE pr.id = auth.uid() AND pr.school_id = v_school_id
+    SELECT 1 FROM public.profiles pr WHERE pr.id = auth.uid() AND pr.school_id = v_school_id
   ) THEN
     RAISE EXCEPTION 'Student is not in your school';
   END IF;
@@ -105,17 +87,11 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT
-    s.id,
-    s.name,
-    ROUND(AVG(sc.score)::numeric, 2),
-    COUNT(*)::bigint,
-    AVG(sc.score) < 50
+  SELECT s.id, s.name, ROUND(AVG(sc.score)::numeric, 2), COUNT(*)::bigint, AVG(sc.score) < 50
   FROM public.assessment_scores sc
   JOIN public.assessments a ON a.id = sc.assessment_id AND a.school_id = v_school_id
   JOIN public.subjects s ON s.id = a.subject_id AND s.school_id = v_school_id
-  WHERE sc.school_id = v_school_id
-    AND sc.student_id = p_student_id
+  WHERE sc.school_id = v_school_id AND sc.student_id = p_student_id
   GROUP BY s.id, s.name
   ORDER BY AVG(sc.score) ASC;
 END;
