@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb, Banknote, Clock3, Megaphone } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb, Banknote, Clock3, Megaphone, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ const NAV = [
  { to: "/attendance", label: "Student Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS },
  { to: "/teacher-attendance", label: "Teacher Attendance", icon: Clock3, roles: SCHOOL_USERS },
  { to: "/communication", label: "Communication", icon: Megaphone, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
+ { to: "/exports", label: "Administrative Exports", icon: FileSpreadsheet, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
  { to: "/results", label: "Results & Grading", icon: FileText, roles: SCHOOL_USERS },
  { to: "/report-cards", label: "Report Cards", icon: FileText, roles: SCHOOL_USERS },
  { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: SCHOOL_USERS },
