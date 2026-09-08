@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb, Banknote, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,9 @@ const NAV = [
   { to: "/classes", label: "Classes", icon: LayoutGrid, roles: SCHOOL_STAFF },
   { to: "/subjects", label: "Subjects", icon: BookOpen, roles: SCHOOL_STAFF },
   { to: "/operations", label: "Operations", icon: CalendarDays, roles: SCHOOL_STAFF },
-  { to: "/attendance", label: "Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS },
+  { to: "/finance", label: "Finance & Fees", icon: Banknote, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
+  { to: "/attendance", label: "Student Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS },
+  { to: "/teacher-attendance", label: "Teacher Attendance", icon: Clock3, roles: SCHOOL_USERS },
   { to: "/results", label: "Results & Grading", icon: FileText, roles: SCHOOL_USERS },
   { to: "/report-cards", label: "Report Cards", icon: FileText, roles: SCHOOL_USERS },
   { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: SCHOOL_USERS },
