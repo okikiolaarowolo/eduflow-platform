@@ -1,45 +1,44 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb, Banknote, Clock3 } from "lucide-react";
+import { Bell, Bot, BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, LayoutDashboard, LayoutGrid, LogOut, Menu, Settings, UserRound, Users, Presentation, BarChart3, ShieldCheck, History, SlidersHorizontal, Lightbulb, Banknote, Clock3, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, ROLE_LABELS, type AppRole } from "@/lib/auth";
 import { api } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-
 const SCHOOL_MANAGERS: AppRole[] = ["school_admin", "principal"];
 const SCHOOL_STAFF: AppRole[] = ["school_admin", "principal", "secretary", "teacher"];
 const SCHOOL_USERS: AppRole[] = ["school_admin", "principal", "secretary", "teacher"];
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: SCHOOL_USERS },
-  { to: "/admin", label: "Platform Admin", icon: ShieldCheck, roles: ["super_admin"] as AppRole[] },
-  { to: "/principal-dashboard", label: "Principal Workspace", icon: Presentation, roles: ["principal"] as AppRole[] },
-  { to: "/secretary-dashboard", label: "Secretary Workspace", icon: ClipboardCheck, roles: ["secretary"] as AppRole[] },
-  { to: "/teacher-dashboard", label: "Teacher Workspace", icon: Presentation, roles: ["teacher"] as AppRole[] },
-  { to: "/students", label: "Students", icon: Users, roles: SCHOOL_STAFF },
-  { to: "/teachers", label: "Teachers", icon: GraduationCap, roles: SCHOOL_MANAGERS },
-  { to: "/classes", label: "Classes", icon: LayoutGrid, roles: SCHOOL_STAFF },
-  { to: "/subjects", label: "Subjects", icon: BookOpen, roles: SCHOOL_STAFF },
-  { to: "/operations", label: "Operations", icon: CalendarDays, roles: SCHOOL_STAFF },
-  { to: "/finance", label: "Finance & Fees", icon: Banknote, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
-  { to: "/attendance", label: "Student Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS },
-  { to: "/teacher-attendance", label: "Teacher Attendance", icon: Clock3, roles: SCHOOL_USERS },
-  { to: "/results", label: "Results & Grading", icon: FileText, roles: SCHOOL_USERS },
-  { to: "/report-cards", label: "Report Cards", icon: FileText, roles: SCHOOL_USERS },
-  { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: SCHOOL_USERS },
-  { to: "/learning", label: "Learning Materials", icon: BookOpen, roles: SCHOOL_USERS },
-  { to: "/analytics", label: "Analytics", icon: BarChart3, roles: SCHOOL_MANAGERS },
-  { to: "/insights", label: "Academic Insights", icon: Lightbulb, roles: SCHOOL_MANAGERS },
-  { to: "/audit", label: "Audit Log", icon: History, roles: SCHOOL_MANAGERS },
-  { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["school_admin", "principal", "teacher"] as AppRole[] },
-  { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal, roles: SCHOOL_MANAGERS },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/settings", label: "Settings", icon: Settings, roles: SCHOOL_MANAGERS },
-  { to: "/profile", label: "My Profile", icon: UserRound },
+ { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: SCHOOL_USERS },
+ { to: "/admin", label: "Platform Admin", icon: ShieldCheck, roles: ["super_admin"] as AppRole[] },
+ { to: "/principal-dashboard", label: "Principal Workspace", icon: Presentation, roles: ["principal"] as AppRole[] },
+ { to: "/secretary-dashboard", label: "Secretary Workspace", icon: ClipboardCheck, roles: ["secretary"] as AppRole[] },
+ { to: "/teacher-dashboard", label: "Teacher Workspace", icon: Presentation, roles: ["teacher"] as AppRole[] },
+ { to: "/students", label: "Students", icon: Users, roles: SCHOOL_STAFF },
+ { to: "/teachers", label: "Teachers", icon: GraduationCap, roles: SCHOOL_MANAGERS },
+ { to: "/classes", label: "Classes", icon: LayoutGrid, roles: SCHOOL_STAFF },
+ { to: "/subjects", label: "Subjects", icon: BookOpen, roles: SCHOOL_STAFF },
+ { to: "/operations", label: "Operations", icon: CalendarDays, roles: SCHOOL_STAFF },
+ { to: "/finance", label: "Finance & Fees", icon: Banknote, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
+ { to: "/attendance", label: "Student Attendance", icon: ClipboardCheck, roles: SCHOOL_USERS },
+ { to: "/teacher-attendance", label: "Teacher Attendance", icon: Clock3, roles: SCHOOL_USERS },
+ { to: "/communication", label: "Communication", icon: Megaphone, roles: ["school_admin", "principal", "secretary"] as AppRole[] },
+ { to: "/results", label: "Results & Grading", icon: FileText, roles: SCHOOL_USERS },
+ { to: "/report-cards", label: "Report Cards", icon: FileText, roles: SCHOOL_USERS },
+ { to: "/timetable", label: "Timetable", icon: CalendarDays, roles: SCHOOL_USERS },
+ { to: "/learning", label: "Learning Materials", icon: BookOpen, roles: SCHOOL_USERS },
+ { to: "/analytics", label: "Analytics", icon: BarChart3, roles: SCHOOL_MANAGERS },
+ { to: "/insights", label: "Academic Insights", icon: Lightbulb, roles: SCHOOL_MANAGERS },
+ { to: "/audit", label: "Audit Log", icon: History, roles: SCHOOL_MANAGERS },
+ { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["school_admin", "principal", "teacher"] as AppRole[] },
+ { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal, roles: SCHOOL_MANAGERS },
+ { to: "/notifications", label: "Notifications", icon: Bell },
+ { to: "/settings", label: "Settings", icon: Settings, roles: SCHOOL_MANAGERS },
+ { to: "/profile", label: "My Profile", icon: UserRound },
 ] as const;
-
 export function useSchoolId() { const { profile } = useAuth(); return profile?.school_id ?? null; }
 export function useSchool() { const schoolId = useSchoolId(); return useQuery({ queryKey: ["school", schoolId], queryFn: () => api.school(schoolId!), enabled: !!schoolId }); }
 function NavLinks({ onNavigate }: { onNavigate?: (() => void) | undefined }) { const pathname = useRouterState({ select: s => s.location.pathname }); const { primaryRole } = useAuth(); return <nav className="space-y-1">{NAV.filter(item => !item.roles || (primaryRole && item.roles.includes(primaryRole))).map(item => { const active = pathname === item.to || pathname.startsWith(item.to + "/"); return <Link key={item.to} to={item.to} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}><item.icon className="size-4" />{item.label}</Link>; })}</nav>; }
