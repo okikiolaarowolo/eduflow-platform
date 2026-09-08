@@ -13,13 +13,31 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
+import { Route as AuthenticatedAiSettingsRouteImport } from './routes/_authenticated/ai-settings'
+import { Route as AuthenticatedAiTutorRouteImport } from './routes/_authenticated/ai-tutor'
+import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
+import { Route as AuthenticatedAttendanceRouteImport } from './routes/_authenticated/attendance'
+import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedClassesRouteImport } from './routes/_authenticated/classes'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
+import { Route as AuthenticatedLearningRouteImport } from './routes/_authenticated/learning'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
+import { Route as AuthenticatedPrincipalDashboardRouteImport } from './routes/_authenticated/principal-dashboard'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedReportCardsRouteImport } from './routes/_authenticated/report-cards'
+import { Route as AuthenticatedResultsRouteImport } from './routes/_authenticated/results'
+import { Route as AuthenticatedSecretaryDashboardRouteImport } from './routes/_authenticated/secretary-dashboard'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStudentsRouteImport } from './routes/_authenticated/students'
 import { Route as AuthenticatedSubjectsRouteImport } from './routes/_authenticated/subjects'
+import { Route as AuthenticatedTeacherDashboardRouteImport } from './routes/_authenticated/teacher-dashboard'
 import { Route as AuthenticatedTeachersRouteImport } from './routes/_authenticated/teachers'
+import { Route as AuthenticatedTimetableRouteImport } from './routes/_authenticated/timetable'
 import { Route as AuthenticatedStudentsStudentIdRouteImport } from './routes/_authenticated/students.$studentId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +59,41 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAiSettingsRoute = AuthenticatedAiSettingsRouteImport.update({
+  id: '/ai-settings',
+  path: '/ai-settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAiTutorRoute = AuthenticatedAiTutorRouteImport.update({
+  id: '/ai-tutor',
+  path: '/ai-tutor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAttendanceRoute = AuthenticatedAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedClassesRoute = AuthenticatedClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
@@ -51,11 +104,60 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLearningRoute = AuthenticatedLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOperationsRoute = AuthenticatedOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPrincipalDashboardRoute =
+  AuthenticatedPrincipalDashboardRouteImport.update({
+    id: '/principal-dashboard',
+    path: '/principal-dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReportCardsRoute =
+  AuthenticatedReportCardsRouteImport.update({
+    id: '/report-cards',
+    path: '/report-cards',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResultsRoute = AuthenticatedResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSecretaryDashboardRoute =
+  AuthenticatedSecretaryDashboardRouteImport.update({
+    id: '/secretary-dashboard',
+    path: '/secretary-dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -71,9 +173,20 @@ const AuthenticatedSubjectsRoute = AuthenticatedSubjectsRouteImport.update({
   path: '/subjects',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTeacherDashboardRoute =
+  AuthenticatedTeacherDashboardRouteImport.update({
+    id: '/teacher-dashboard',
+    path: '/teacher-dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTeachersRoute = AuthenticatedTeachersRouteImport.update({
   id: '/teachers',
   path: '/teachers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTimetableRoute = AuthenticatedTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedStudentsStudentIdRoute =
@@ -87,26 +200,62 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/ai': typeof AuthenticatedAiRoute
+  '/ai-settings': typeof AuthenticatedAiSettingsRoute
+  '/ai-tutor': typeof AuthenticatedAiTutorRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/attendance': typeof AuthenticatedAttendanceRoute
+  '/audit': typeof AuthenticatedAuditRoute
   '/classes': typeof AuthenticatedClassesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/insights': typeof AuthenticatedInsightsRoute
+  '/learning': typeof AuthenticatedLearningRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/operations': typeof AuthenticatedOperationsRoute
+  '/principal-dashboard': typeof AuthenticatedPrincipalDashboardRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/report-cards': typeof AuthenticatedReportCardsRoute
+  '/results': typeof AuthenticatedResultsRoute
+  '/secretary-dashboard': typeof AuthenticatedSecretaryDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/students': typeof AuthenticatedStudentsRouteWithChildren
   '/subjects': typeof AuthenticatedSubjectsRoute
+  '/teacher-dashboard': typeof AuthenticatedTeacherDashboardRoute
   '/teachers': typeof AuthenticatedTeachersRoute
+  '/timetable': typeof AuthenticatedTimetableRoute
   '/students/$studentId': typeof AuthenticatedStudentsStudentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/ai': typeof AuthenticatedAiRoute
+  '/ai-settings': typeof AuthenticatedAiSettingsRoute
+  '/ai-tutor': typeof AuthenticatedAiTutorRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/attendance': typeof AuthenticatedAttendanceRoute
+  '/audit': typeof AuthenticatedAuditRoute
   '/classes': typeof AuthenticatedClassesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/insights': typeof AuthenticatedInsightsRoute
+  '/learning': typeof AuthenticatedLearningRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/operations': typeof AuthenticatedOperationsRoute
+  '/principal-dashboard': typeof AuthenticatedPrincipalDashboardRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/report-cards': typeof AuthenticatedReportCardsRoute
+  '/results': typeof AuthenticatedResultsRoute
+  '/secretary-dashboard': typeof AuthenticatedSecretaryDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/students': typeof AuthenticatedStudentsRouteWithChildren
   '/subjects': typeof AuthenticatedSubjectsRoute
+  '/teacher-dashboard': typeof AuthenticatedTeacherDashboardRoute
   '/teachers': typeof AuthenticatedTeachersRoute
+  '/timetable': typeof AuthenticatedTimetableRoute
   '/students/$studentId': typeof AuthenticatedStudentsStudentIdRoute
 }
 export interface FileRoutesById {
@@ -115,13 +264,31 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/ai': typeof AuthenticatedAiRoute
+  '/_authenticated/ai-settings': typeof AuthenticatedAiSettingsRoute
+  '/_authenticated/ai-tutor': typeof AuthenticatedAiTutorRoute
+  '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
+  '/_authenticated/attendance': typeof AuthenticatedAttendanceRoute
+  '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/classes': typeof AuthenticatedClassesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/insights': typeof AuthenticatedInsightsRoute
+  '/_authenticated/learning': typeof AuthenticatedLearningRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/operations': typeof AuthenticatedOperationsRoute
+  '/_authenticated/principal-dashboard': typeof AuthenticatedPrincipalDashboardRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/report-cards': typeof AuthenticatedReportCardsRoute
+  '/_authenticated/results': typeof AuthenticatedResultsRoute
+  '/_authenticated/secretary-dashboard': typeof AuthenticatedSecretaryDashboardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/students': typeof AuthenticatedStudentsRouteWithChildren
   '/_authenticated/subjects': typeof AuthenticatedSubjectsRoute
+  '/_authenticated/teacher-dashboard': typeof AuthenticatedTeacherDashboardRoute
   '/_authenticated/teachers': typeof AuthenticatedTeachersRoute
+  '/_authenticated/timetable': typeof AuthenticatedTimetableRoute
   '/_authenticated/students/$studentId': typeof AuthenticatedStudentsStudentIdRoute
 }
 export interface FileRouteTypes {
@@ -130,26 +297,62 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin'
+    | '/ai'
+    | '/ai-settings'
+    | '/ai-tutor'
+    | '/analytics'
+    | '/attendance'
+    | '/audit'
     | '/classes'
     | '/dashboard'
+    | '/insights'
+    | '/learning'
+    | '/notifications'
     | '/onboarding'
+    | '/operations'
+    | '/principal-dashboard'
+    | '/profile'
+    | '/report-cards'
+    | '/results'
+    | '/secretary-dashboard'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
+    | '/timetable'
     | '/students/$studentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/admin'
+    | '/ai'
+    | '/ai-settings'
+    | '/ai-tutor'
+    | '/analytics'
+    | '/attendance'
+    | '/audit'
     | '/classes'
     | '/dashboard'
+    | '/insights'
+    | '/learning'
+    | '/notifications'
     | '/onboarding'
+    | '/operations'
+    | '/principal-dashboard'
+    | '/profile'
+    | '/report-cards'
+    | '/results'
+    | '/secretary-dashboard'
     | '/settings'
     | '/students'
     | '/subjects'
+    | '/teacher-dashboard'
     | '/teachers'
+    | '/timetable'
     | '/students/$studentId'
   id:
     | '__root__'
@@ -157,13 +360,31 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/admin'
+    | '/_authenticated/ai'
+    | '/_authenticated/ai-settings'
+    | '/_authenticated/ai-tutor'
+    | '/_authenticated/analytics'
+    | '/_authenticated/attendance'
+    | '/_authenticated/audit'
     | '/_authenticated/classes'
     | '/_authenticated/dashboard'
+    | '/_authenticated/insights'
+    | '/_authenticated/learning'
+    | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
+    | '/_authenticated/operations'
+    | '/_authenticated/principal-dashboard'
+    | '/_authenticated/profile'
+    | '/_authenticated/report-cards'
+    | '/_authenticated/results'
+    | '/_authenticated/secretary-dashboard'
     | '/_authenticated/settings'
     | '/_authenticated/students'
     | '/_authenticated/subjects'
+    | '/_authenticated/teacher-dashboard'
     | '/_authenticated/teachers'
+    | '/_authenticated/timetable'
     | '/_authenticated/students/$studentId'
   fileRoutesById: FileRoutesById
 }
@@ -204,6 +425,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ai': {
+      id: '/_authenticated/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AuthenticatedAiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ai-settings': {
+      id: '/_authenticated/ai-settings'
+      path: '/ai-settings'
+      fullPath: '/ai-settings'
+      preLoaderRoute: typeof AuthenticatedAiSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ai-tutor': {
+      id: '/_authenticated/ai-tutor'
+      path: '/ai-tutor'
+      fullPath: '/ai-tutor'
+      preLoaderRoute: typeof AuthenticatedAiTutorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/attendance': {
+      id: '/_authenticated/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AuthenticatedAttendanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/audit': {
+      id: '/_authenticated/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthenticatedAuditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/classes': {
       id: '/_authenticated/classes'
       path: '/classes'
@@ -218,11 +488,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/insights': {
+      id: '/_authenticated/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof AuthenticatedInsightsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/learning': {
+      id: '/_authenticated/learning'
+      path: '/learning'
+      fullPath: '/learning'
+      preLoaderRoute: typeof AuthenticatedLearningRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/operations': {
+      id: '/_authenticated/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof AuthenticatedOperationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/principal-dashboard': {
+      id: '/_authenticated/principal-dashboard'
+      path: '/principal-dashboard'
+      fullPath: '/principal-dashboard'
+      preLoaderRoute: typeof AuthenticatedPrincipalDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report-cards': {
+      id: '/_authenticated/report-cards'
+      path: '/report-cards'
+      fullPath: '/report-cards'
+      preLoaderRoute: typeof AuthenticatedReportCardsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/results': {
+      id: '/_authenticated/results'
+      path: '/results'
+      fullPath: '/results'
+      preLoaderRoute: typeof AuthenticatedResultsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/secretary-dashboard': {
+      id: '/_authenticated/secretary-dashboard'
+      path: '/secretary-dashboard'
+      fullPath: '/secretary-dashboard'
+      preLoaderRoute: typeof AuthenticatedSecretaryDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -246,11 +579,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSubjectsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/teacher-dashboard': {
+      id: '/_authenticated/teacher-dashboard'
+      path: '/teacher-dashboard'
+      fullPath: '/teacher-dashboard'
+      preLoaderRoute: typeof AuthenticatedTeacherDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/teachers': {
       id: '/_authenticated/teachers'
       path: '/teachers'
       fullPath: '/teachers'
       preLoaderRoute: typeof AuthenticatedTeachersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/timetable': {
+      id: '/_authenticated/timetable'
+      path: '/timetable'
+      fullPath: '/timetable'
+      preLoaderRoute: typeof AuthenticatedTimetableRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/students/$studentId': {
@@ -277,23 +624,59 @@ const AuthenticatedStudentsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAiRoute: typeof AuthenticatedAiRoute
+  AuthenticatedAiSettingsRoute: typeof AuthenticatedAiSettingsRoute
+  AuthenticatedAiTutorRoute: typeof AuthenticatedAiTutorRoute
+  AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
+  AuthenticatedAttendanceRoute: typeof AuthenticatedAttendanceRoute
+  AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedClassesRoute: typeof AuthenticatedClassesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
+  AuthenticatedLearningRoute: typeof AuthenticatedLearningRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
+  AuthenticatedPrincipalDashboardRoute: typeof AuthenticatedPrincipalDashboardRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedReportCardsRoute: typeof AuthenticatedReportCardsRoute
+  AuthenticatedResultsRoute: typeof AuthenticatedResultsRoute
+  AuthenticatedSecretaryDashboardRoute: typeof AuthenticatedSecretaryDashboardRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStudentsRoute: typeof AuthenticatedStudentsRouteWithChildren
   AuthenticatedSubjectsRoute: typeof AuthenticatedSubjectsRoute
+  AuthenticatedTeacherDashboardRoute: typeof AuthenticatedTeacherDashboardRoute
   AuthenticatedTeachersRoute: typeof AuthenticatedTeachersRoute
+  AuthenticatedTimetableRoute: typeof AuthenticatedTimetableRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAiRoute: AuthenticatedAiRoute,
+  AuthenticatedAiSettingsRoute: AuthenticatedAiSettingsRoute,
+  AuthenticatedAiTutorRoute: AuthenticatedAiTutorRoute,
+  AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
+  AuthenticatedAttendanceRoute: AuthenticatedAttendanceRoute,
+  AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedClassesRoute: AuthenticatedClassesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
+  AuthenticatedLearningRoute: AuthenticatedLearningRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
+  AuthenticatedPrincipalDashboardRoute: AuthenticatedPrincipalDashboardRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedReportCardsRoute: AuthenticatedReportCardsRoute,
+  AuthenticatedResultsRoute: AuthenticatedResultsRoute,
+  AuthenticatedSecretaryDashboardRoute: AuthenticatedSecretaryDashboardRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStudentsRoute: AuthenticatedStudentsRouteWithChildren,
   AuthenticatedSubjectsRoute: AuthenticatedSubjectsRoute,
+  AuthenticatedTeacherDashboardRoute: AuthenticatedTeacherDashboardRoute,
   AuthenticatedTeachersRoute: AuthenticatedTeachersRoute,
+  AuthenticatedTimetableRoute: AuthenticatedTimetableRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
