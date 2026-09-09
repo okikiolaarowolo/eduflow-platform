@@ -115,7 +115,7 @@ function FinancePage() {
       const { error } = await supabase.from("fee_payments").insert({
         school_id: schoolId, student_fee_id: charge.id, student_id: charge.student_id,
         amount: Number(payment.amount), method: payment.method,
-        reference: payment.reference.trim() || null, note: payment.note.trim() || null,
+        reference: payment.reference.trim() || null, note: payment.note.trim() || null, receipt_number: "",
       });
       if (error) throw new Error(error.message);
     },
