@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, CreditCard, Database, Loader2, ShieldCheck } from "lucide-react";
+import { Activity, BadgeDollarSign, Building2, Check, CreditCard, Gauge, Loader2, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, EmptyState } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -12,67 +12,63 @@ import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminPage });
 
-type Plan = {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  monthly_price: number;
-  annual_price: number;
-  max_students: number | null;
-  max_teachers: number | null;
-  ai_tokens_monthly: number | null;
-};
-type Subscription = {
-  id: string;
-  school_id: string;
-  status: string;
-  plan_id: string;
-  schools: { name: string } | null;
-  saas_plans: { name: string } | null;
-};
+type Plan = { id: string; code: string; name: string; description: string | null; monthly_price: number; annual_price: number; max_students: number | null; max_teachers: number | null; ai_tokens_monthly: number | null; active: boolean };
+type Subscription = { id: string; school_id: string; status: string; plan_id: string; billing_cycle: string; current_period_end: string | null; schools: { name: string } | null; saas_plans: { name: string } | null };
+type Usage = { school_id: string; usage_month: string; student_count: number; teacher_count: number; assessment_count: number; assignment_count: number; ai_tokens: number; api_events: number };
+type Invoice = { id: string; school_id: string; amount: number; currency: string; status: string; due_at: string | null; schools: { name: string } | null };
 
 function AdminPage() {
   const { primaryRole } = useAuth();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const query = useQuery({
     queryKey: ["platform-admin"],
     enabled: primaryRole === "super_admin",
     queryFn: async () => {
-      const [{ data: schools, error: schoolsError }, { data: plans, error: plansError }, { data: subscriptions, error: subscriptionsError }] = await Promise.all([
-        supabase.from("schools").select("id, name, is_demo, onboarding_completed").order("created_at", { ascending: false }),
-        supabase.from("saas_plans").select("id, code, name, description, monthly_price, annual_price, max_students, max_teachers, ai_tokens_monthly").eq("active", true).order("monthly_price"),
-        supabase.from("school_subscriptions").select("id, school_id, status, plan_id, schools(name), saas_plans(name)").order("created_at", { ascending: false }),
+      const db = supabase as any;
+      const [schools, plans, subscriptions, usage, invoices, recentEvents] = await Promise.all([
+        db.from("schools").select("id,name,is_demo,onboarding_completed,created_at").order("created_at", { ascending: false }),
+        db.from("saas_plans").select("id,code,name,description,monthly_price,annual_price,max_students,max_teachers,ai_tokens_monthly,active").order("monthly_price"),
+        db.from("school_subscriptions").select("id,school_id,status,plan_id,billing_cycle,current_period_end,schools(name),saas_plans(name)").order("created_at", { ascending: false }),
+        db.from("school_usage_monthly").select("school_id,usage_month,student_count,teacher_count,assessment_count,assignment_count,ai_tokens,api_events").order("usage_month", { ascending: false }).limit(100),
+        db.from("billing_invoices").select("id,school_id,amount,currency,status,due_at,schools(name)").order("created_at", { ascending: false }).limit(20),
+        db.from("school_usage_events").select("id,created_at,metric,quantity,school_id").order("created_at", { ascending: false }).limit(10),
       ]);
-      if (schoolsError) throw schoolsError;
-      if (plansError) throw plansError;
-      if (subscriptionsError) throw subscriptionsError;
-      return { schools: schools ?? [], plans: (plans ?? []) as Plan[], subscriptions: (subscriptions ?? []) as Subscription[] };
+      const results = [schools, plans, subscriptions, usage, invoices, recentEvents];
+      const error = results.find((item) => item.error)?.error;
+      if (error) throw error;
+      return { schools: schools.data ?? [], plans: (plans.data ?? []) as Plan[], subscriptions: (subscriptions.data ?? []) as Subscription[], usage: (usage.data ?? []) as Usage[], invoices: (invoices.data ?? []) as Invoice[], recentEvents: recentEvents.data ?? [] };
     },
   });
-
-  const changeSubscription = useMutation({
-    mutationFn: async ({ id, planId, status }: { id: string; planId?: string; status?: string }) => {
-      const patch: { plan_id?: string; status?: string } = {};
-      if (planId) patch.plan_id = planId;
-      if (status) patch.status = status;
-      const { error } = await supabase.from("school_subscriptions").update(patch).eq("id", id);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: async () => {
-      toast.success("Subscription updated");
-      await queryClient.invalidateQueries({ queryKey: ["platform-admin"] });
-    },
-    onError: (error: Error) => toast.error(error.message),
+  const refreshUsage = useMutation({
+    mutationFn: async (schoolId: string) => { const { error } = await (supabase as any).rpc("refresh_school_usage_monthly", { p_school_id: schoolId }); if (error) throw new Error(error.message); },
+    onSuccess: async () => { toast.success("Usage refreshed"); await qc.invalidateQueries({ queryKey: ["platform-admin"] }); },
+    onError: (e: Error) => toast.error(e.message),
   });
-
+  const updatePlan = useMutation({
+    mutationFn: async (plan: Plan) => { const { error } = await (supabase as any).from("saas_plans").update({ monthly_price: Math.max(0, Number(plan.monthly_price) || 0), annual_price: Math.max(0, Number(plan.annual_price) || 0), max_students: plan.max_students == null ? null : Math.max(1, Number(plan.max_students)), max_teachers: plan.max_teachers == null ? null : Math.max(1, Number(plan.max_teachers)), ai_tokens_monthly: plan.ai_tokens_monthly == null ? null : Math.max(0, Number(plan.ai_tokens_monthly)) }).eq("id", plan.id); if (error) throw new Error(error.message); },
+    onSuccess: async () => { toast.success("Plan saved"); await qc.invalidateQueries({ queryKey: ["platform-admin"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const updateSubscription = useMutation({
+    mutationFn: async ({ id, planId, status, cycle }: { id: string; planId?: string; status?: string; cycle?: string }) => { const patch: Record<string, string> = {}; if (planId) patch.plan_id = planId; if (status) patch.status = status; if (cycle) patch.billing_cycle = cycle; const { error } = await (supabase as any).from("school_subscriptions").update(patch).eq("id", id); if (error) throw new Error(error.message); },
+    onSuccess: async () => { toast.success("Subscription updated"); await qc.invalidateQueries({ queryKey: ["platform-admin"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   if (primaryRole !== "super_admin") return <AppShell title="Platform Admin"><EmptyState icon={ShieldCheck} title="Super administrator access only" description="This area manages EduFlow platform-wide configuration." /></AppShell>;
-  if (query.isLoading) return <AppShell title="Platform Admin"><div className="flex min-h-64 items-center justify-center"><Loader2 className="size-6 animate-spin"/></div></AppShell>;
+  if (query.isLoading) return <AppShell title="Platform Admin"><div className="flex min-h-64 items-center justify-center"><Loader2 className="size-6 animate-spin" /></div></AppShell>;
   if (query.isError || !query.data) return <AppShell title="Platform Admin"><p className="text-sm text-destructive">Unable to load platform administration.</p></AppShell>;
-
-  const { schools, plans, subscriptions } = query.data;
-  return <AppShell title="Platform Admin" description="Super-admin controls for schools, plans and subscriptions">
-    <div className="grid gap-4 md:grid-cols-3"><Card><CardContent className="p-5"><Building2 className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Schools</p><p className="font-display text-3xl font-bold">{schools.length}</p></CardContent></Card><Card><CardContent className="p-5"><CreditCard className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Subscriptions</p><p className="font-display text-3xl font-bold">{subscriptions.length}</p></CardContent></Card><Card><CardContent className="p-5"><Database className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Active plans</p><p className="font-display text-3xl font-bold">{plans.length}</p></CardContent></Card></div>
-    <div className="mt-6 grid gap-6 lg:grid-cols-2"><Card><CardHeader><CardTitle className="text-base">SaaS plans</CardTitle></CardHeader><CardContent className="space-y-3">{plans.map((plan) => <div key={plan.id} className="rounded-xl border p-4"><div className="flex items-center justify-between"><div><p className="font-semibold">{plan.name}</p><p className="text-xs text-muted-foreground">{plan.description}</p></div><Badge variant="secondary">{plan.code}</Badge></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground"><span>Students: {plan.max_students ?? "∞"}</span><span>Teachers: {plan.max_teachers ?? "∞"}</span><span>AI: {plan.ai_tokens_monthly?.toLocaleString() ?? "∞"}</span></div><p className="mt-2 text-sm">${Number(plan.monthly_price).toFixed(2)} / month · ${Number(plan.annual_price).toFixed(2)} / year</p></div>)}</CardContent></Card><Card><CardHeader><CardTitle className="text-base">School subscriptions</CardTitle></CardHeader><CardContent className="space-y-3">{subscriptions.length === 0 ? <p className="text-sm text-muted-foreground">No school subscriptions have been provisioned yet.</p> : subscriptions.map((sub) => <div key={sub.id} className="rounded-xl border p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium">{sub.schools?.name ?? "Unknown school"}</p><p className="text-xs text-muted-foreground">{sub.saas_plans?.name ?? "Unassigned plan"}</p></div><Badge variant={sub.status === "active" ? "default" : "secondary"}>{sub.status}</Badge></div><div className="mt-3 flex flex-wrap gap-2"><Select value={sub.plan_id} onValueChange={(planId) => changeSubscription.mutate({ id: sub.id, planId })}><SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger><SelectContent>{plans.map((plan) => <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>)}</SelectContent></Select><Select value={sub.status} onValueChange={(status) => changeSubscription.mutate({ id: sub.id, status })}><SelectTrigger className="w-[145px]"><SelectValue /></SelectTrigger><SelectContent>{["trial","active","past_due","cancelled","expired"].map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select>{sub.status !== "active" && <Button size="sm" variant="outline" onClick={() => changeSubscription.mutate({ id: sub.id, status: "active" })} disabled={changeSubscription.isPending}><Check className="size-4"/> Activate</Button>}</div></div>)}</CardContent></Card></div>
+  const { schools, plans, subscriptions, usage, invoices, recentEvents } = query.data;
+  const activeSubs = subscriptions.filter((s) => s.status === "active" || s.status === "trial").length;
+  const pastDue = subscriptions.filter((s) => s.status === "past_due").length;
+  const openInvoices = invoices.filter((i) => i.status === "open" || i.status === "uncollectible").length;
+  const totalStudents = usage.reduce((sum, row) => sum + Number(row.student_count || 0), 0);
+  return <AppShell title="Platform Admin" description="SaaS operations, subscriptions, metering and production health">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Card><CardContent className="p-5"><Building2 className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Schools</p><p className="text-3xl font-bold">{schools.length}</p><p className="text-xs text-muted-foreground">Multi-tenant organizations</p></CardContent></Card><Card><CardContent className="p-5"><CreditCard className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Active / trial</p><p className="text-3xl font-bold">{activeSubs}</p><p className="text-xs text-muted-foreground">{pastDue} past due</p></CardContent></Card><Card><CardContent className="p-5"><Users className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Metered students</p><p className="text-3xl font-bold">{totalStudents.toLocaleString()}</p><p className="text-xs text-muted-foreground">Across usage snapshots</p></CardContent></Card><Card><CardContent className="p-5"><BadgeDollarSign className="size-5 text-primary"/><p className="mt-3 text-xs text-muted-foreground">Open invoices</p><p className="text-3xl font-bold">{openInvoices}</p><p className="text-xs text-muted-foreground">Billing attention required</p></CardContent></Card></div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <Card><CardHeader><CardTitle className="flex items-center justify-between text-base">SaaS plans <Badge variant="outline">Configurable</Badge></CardTitle></CardHeader><CardContent className="space-y-4">{plans.map((plan) => <div key={plan.id} className="rounded-xl border p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{plan.name}</p><p className="text-xs text-muted-foreground">{plan.description}</p></div><Badge variant="secondary">{plan.code}</Badge></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs text-muted-foreground">Monthly price<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground" type="number" min="0" value={plan.monthly_price} onChange={(e)=>qc.setQueryData(["platform-admin"], {...query.data, plans: plans.map(p=>p.id===plan.id?{...p,monthly_price:Number(e.target.value)}:p)})}/></label><label className="text-xs text-muted-foreground">Annual price<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground" type="number" min="0" value={plan.annual_price} onChange={(e)=>qc.setQueryData(["platform-admin"], {...query.data, plans: plans.map(p=>p.id===plan.id?{...p,annual_price:Number(e.target.value)}:p)})}/></label><label className="text-xs text-muted-foreground">Max students<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground" type="number" min="1" placeholder="Unlimited" value={plan.max_students ?? ""} onChange={(e)=>qc.setQueryData(["platform-admin"], {...query.data, plans: plans.map(p=>p.id===plan.id?{...p,max_students:e.target.value?Number(e.target.value):null}:p)})}/></label><label className="text-xs text-muted-foreground">Max teachers<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground" type="number" min="1" placeholder="Unlimited" value={plan.max_teachers ?? ""} onChange={(e)=>qc.setQueryData(["platform-admin"], {...query.data, plans: plans.map(p=>p.id===plan.id?{...p,max_teachers:e.target.value?Number(e.target.value):null}:p)})}/></label><label className="text-xs text-muted-foreground sm:col-span-2">Monthly AI tokens<input className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground" type="number" min="0" placeholder="Unlimited" value={plan.ai_tokens_monthly ?? ""} onChange={(e)=>qc.setQueryData(["platform-admin"], {...query.data, plans: plans.map(p=>p.id===plan.id?{...p,ai_tokens_monthly:e.target.value?Number(e.target.value):null}:p)})}/></label></div><Button className="mt-3" size="sm" onClick={()=>updatePlan.mutate(plan)} disabled={updatePlan.isPending}>Save plan</Button></div>)}</CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">School subscriptions</CardTitle></CardHeader><CardContent className="space-y-3">{subscriptions.length===0?<p className="text-sm text-muted-foreground">No subscriptions.</p>:subscriptions.map((sub)=><div key={sub.id} className="rounded-xl border p-3"><div className="flex items-center justify-between gap-3"><div><p className="font-medium">{sub.schools?.name ?? "Unknown school"}</p><p className="text-xs text-muted-foreground">{sub.saas_plans?.name ?? "Unassigned"} · {sub.billing_cycle}</p></div><Badge variant={sub.status==="active"?"default":sub.status==="past_due"?"destructive":"secondary"}>{sub.status}</Badge></div><div className="mt-3 flex flex-wrap gap-2"><Select value={sub.plan_id} onValueChange={(v)=>updateSubscription.mutate({id:sub.id,planId:v})}><SelectTrigger className="w-[150px]"><SelectValue/></SelectTrigger><SelectContent>{plans.map(p=><SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Select value={sub.status} onValueChange={(v)=>updateSubscription.mutate({id:sub.id,status:v})}><SelectTrigger className="w-[135px]"><SelectValue/></SelectTrigger><SelectContent>{["trial","active","past_due","cancelled","expired"].map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select><Select value={sub.billing_cycle} onValueChange={(v)=>updateSubscription.mutate({id:sub.id,cycle:v})}><SelectTrigger className="w-[125px]"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="monthly">monthly</SelectItem><SelectItem value="annual">annual</SelectItem></SelectContent></Select>{sub.status!=="active"&&<Button size="sm" variant="outline" onClick={()=>updateSubscription.mutate({id:sub.id,status:"active"})}><Check className="size-4"/> Activate</Button>}</div></div>)}</CardContent></Card>
+    </div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-2"><Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Gauge className="size-4"/>Usage metering</CardTitle></CardHeader><CardContent className="space-y-3">{schools.map((school:{id:string;name:string})=>{const row=usage.find((u)=>u.school_id===school.id);return <div key={school.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><p className="font-medium">{school.name}</p><p className="text-xs text-muted-foreground">Students {row?.student_count??0} · Teachers {row?.teacher_count??0} · AI {Number(row?.ai_tokens??0).toLocaleString()} tokens</p></div><Button size="sm" variant="outline" onClick={()=>refreshUsage.mutate(school.id)} disabled={refreshUsage.isPending}><RefreshCw className="size-4"/> Refresh</Button></div>})}</CardContent></Card><Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Activity className="size-4"/>Production signal</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">Recent metering events</p><p className="text-2xl font-bold">{recentEvents.length}</p></div><div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">Invoices tracked</p><p className="text-2xl font-bold">{invoices.length}</p></div></div><div className="rounded-xl border p-4 text-sm"><p className="font-medium">Operational readiness</p><p className="mt-1 text-muted-foreground">Tenant isolation, RLS, plan limits, usage metering and billing records are enabled. A payment provider can populate billing events through a secure server-side integration.</p></div></CardContent></Card></div>
+    <Card className="mt-6"><CardHeader><CardTitle className="text-base">Recent invoices</CardTitle></CardHeader><CardContent className="space-y-2">{invoices.length===0?<p className="text-sm text-muted-foreground">No invoices have been generated.</p>:invoices.map((invoice)=><div key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2"><div><p className="font-medium">{invoice.schools?.name ?? "Unknown school"}</p><p className="text-xs text-muted-foreground">{invoice.currency} {Number(invoice.amount).toFixed(2)}{invoice.due_at?` · due ${new Date(invoice.due_at).toLocaleDateString()}`:""}</p></div><Badge variant={invoice.status==="paid"?"default":invoice.status==="open"?"secondary":"outline"}>{invoice.status}</Badge></div>)}</CardContent></Card>
   </AppShell>;
 }
