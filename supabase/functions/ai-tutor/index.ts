@@ -1,208 +1,42 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.112.4";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
-
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 type Mode = "tutor" | "question-generator" | "explanation" | "study-plan" | "teacher-assistant" | "report-assistant" | "academic-insights";
-type Settings = {
-  enabled: boolean;
-  student_tutor_enabled: boolean;
-  teacher_assistant_enabled: boolean;
-  monthly_token_limit: number;
-  max_output_tokens: number;
-  disclosure_text: string;
-};
-
-const MODES = new Set<Mode>([
-  "tutor",
-  "question-generator",
-  "explanation",
-  "study-plan",
-  "teacher-assistant",
-  "report-assistant",
-  "academic-insights",
-]);
-
-const modeInstruction = (mode: Mode) => {
-  switch (mode) {
-    case "question-generator":
-      return "Generate school-appropriate practice questions at the requested level. Put answers in a separate section and avoid pretending the questions are official exam papers.";
-    case "explanation":
-      return "Explain the concept step-by-step using a simple example, then give one short check-for-understanding question.";
-    case "study-plan":
-      return "Create a practical study plan with short sessions, review checkpoints, retrieval practice and measurable tasks.";
-    case "teacher-assistant":
-      return "Act as a teacher productivity assistant. Help draft lesson notes, classroom activities, practice questions, rubrics, feedback and evidence-based interventions. Do not invent student records, grades, attendance or school policy.";
-    case "report-assistant":
-      return "Act as a report-writing assistant. Use only the academic facts supplied in the request/context. Draft concise teacher or principal remarks. Never invent grades, attendance, ranking, behaviour records or achievements. Clearly state that the generated wording requires staff review.";
-    case "academic-insights":
-      return "Act as a school academic analyst. Use only the aggregated evidence supplied in the request/context. Identify patterns, possible weak areas, confidence limits and practical interventions. Do not infer private facts about individual students and do not invent data.";
-    default:
-      return "Teach step-by-step and ask a short practice question after the explanation.";
-  }
-};
+type Settings = { enabled: boolean; student_tutor_enabled: boolean; teacher_assistant_enabled: boolean; monthly_token_limit: number; max_output_tokens: number; disclosure_text: string };
+const MODES = new Set<Mode>(["tutor", "question-generator", "explanation", "study-plan", "teacher-assistant", "report-assistant", "academic-insights"]);
+const modeInstruction = (mode: Mode) => { switch (mode) { case "question-generator": return "Generate school-appropriate practice questions at the requested level. Put answers in a separate section and avoid pretending the questions are official exam papers."; case "explanation": return "Explain the concept step-by-step using a simple example, then give one short check-for-understanding question."; case "study-plan": return "Create a practical study plan with short sessions, review checkpoints, retrieval practice and measurable tasks."; case "teacher-assistant": return "Act as a teacher productivity assistant. Help draft lesson notes, classroom activities, practice questions, rubrics, feedback and evidence-based interventions. Do not invent student records, grades, attendance or school policy."; case "report-assistant": return "Act as a report-writing assistant. Use only the academic facts supplied in the request/context. Draft concise teacher or principal remarks. Never invent grades, attendance, ranking, behaviour records or achievements. Clearly state that the generated wording requires staff review."; case "academic-insights": return "Act as a school academic analyst. Use only the aggregated evidence supplied in the request/context. Identify patterns, possible weak areas, confidence limits and practical interventions. Do not infer private facts about individual students and do not invent data."; default: return "Teach step-by-step and ask a short practice question after the explanation."; } };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Authentication required" }, 401);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) return json({ error: "Invalid session" }, 401);
-
-    const body = await req.json();
-    const conversationId = typeof body.conversation_id === "string" ? body.conversation_id : "";
-    const message = typeof body.message === "string" ? body.message.trim() : "";
-    const subjectId = typeof body.subject_id === "string" ? body.subject_id : null;
-    const requestedMode = typeof body.mode === "string" ? body.mode : "tutor";
-    const mode = MODES.has(requestedMode as Mode) ? (requestedMode as Mode) : "tutor";
-    const context = typeof body.context === "string" ? body.context.trim() : "";
-
-    if (!conversationId || !message) return json({ error: "A message is required" }, 400);
-    if (message.length > 8000) return json({ error: "Message is too long." }, 400);
-    if (context.length > 12000) return json({ error: "AI context is too long. Please reduce it." }, 400);
-
-    const { data: conversation, error: conversationError } = await supabase
-      .from("ai_conversations")
-      .select("id,school_id,user_id,mode")
-      .eq("id", conversationId)
-      .eq("user_id", userData.user.id)
-      .single();
-    if (conversationError || !conversation) return json({ error: "Conversation not found" }, 404);
-
-    const { data: settings } = await supabase
-      .from("ai_settings")
-      .select("enabled,student_tutor_enabled,teacher_assistant_enabled,monthly_token_limit,max_output_tokens,disclosure_text")
-      .eq("school_id", conversation.school_id)
-      .maybeSingle();
-    if (!settings?.enabled) return json({ error: "EduFlow AI is disabled for this school." }, 403);
-
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("school_id", conversation.school_id);
-    const roleSet = new Set((roles ?? []).map((r) => r.role));
-    const isTeacher = roleSet.has("teacher");
-    const isStudent = roleSet.has("student");
-    const isManager = roleSet.has("school_admin") || roleSet.has("principal") || roleSet.has("super_admin");
-
-    if (!isStudent && !isTeacher && !isManager) return json({ error: "Your account is not permitted to use EduFlow AI." }, 403);
-    if (isStudent && !isManager && settings.student_tutor_enabled === false) return json({ error: "The student AI tutor is disabled for this school." }, 403);
-    if (isTeacher && !isManager && settings.teacher_assistant_enabled === false && mode === "teacher-assistant") return json({ error: "The teacher AI assistant is disabled for this school." }, 403);
-    if (!isManager && mode === "academic-insights") return json({ error: "Academic AI insights are available to school managers." }, 403);
-    if (!isManager && mode === "report-assistant") return json({ error: "Report AI assistance is available to school managers and teachers." }, 403);
-
-    const { data: subject } = subjectId
-      ? await supabase.from("subjects").select("name").eq("id", subjectId).eq("school_id", conversation.school_id).maybeSingle()
-      : { data: null };
-    const subjectName = subject?.name ?? "general school subjects";
-
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "EduFlow AI is not configured yet. An administrator must add the AI provider key." }, 503);
-
-    const moderationResponse = await fetch("https://api.openai.com/v1/moderations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "omni-moderation-latest", input: `${message}\n${context}`.slice(0, 20000) }),
-    });
-    if (!moderationResponse.ok) return json({ error: "AI safety check is temporarily unavailable." }, 503);
-    const moderation = await moderationResponse.json();
-    if (moderation.results?.[0]?.flagged) return json({ error: "I can help with safe, school-appropriate learning questions. Please rephrase your request." }, 400);
-
-    const { data: history } = await supabase
-      .from("ai_messages")
-      .select("role,content")
-      .eq("conversation_id", conversationId)
-      .eq("user_id", userData.user.id)
-      .order("created_at", { ascending: true })
-      .limit(30);
-
+    const authHeader = req.headers.get("Authorization"); if (!authHeader) return json({ error: "Authentication required" }, 401);
+    const url = Deno.env.get("SUPABASE_URL")!; const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!; const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
+    const { data: userData, error: userError } = await supabase.auth.getUser(); if (userError || !userData.user) return json({ error: "Invalid session" }, 401);
+    const body = await req.json(); const conversationId = typeof body.conversation_id === "string" ? body.conversation_id : ""; const message = typeof body.message === "string" ? body.message.trim() : ""; const subjectId = typeof body.subject_id === "string" ? body.subject_id : null; const requestedMode = typeof body.mode === "string" ? body.mode : "tutor"; const mode: Mode = MODES.has(requestedMode as Mode) ? (requestedMode as Mode) : "tutor"; const context = typeof body.context === "string" ? body.context.trim() : "";
+    if (!conversationId || !message) return json({ error: "A message is required" }, 400); if (message.length > 8000) return json({ error: "Message is too long." }, 400); if (context.length > 12000) return json({ error: "AI context is too long. Please reduce it." }, 400);
+    const { data: conversation, error: conversationError } = await supabase.from("ai_conversations").select("id,school_id,user_id,mode").eq("id", conversationId).eq("user_id", userData.user.id).single(); if (conversationError || !conversation) return json({ error: "Conversation not found" }, 404);
+    const { data: settings } = await supabase.from("ai_settings").select("enabled,student_tutor_enabled,teacher_assistant_enabled,monthly_token_limit,max_output_tokens,disclosure_text").eq("school_id", conversation.school_id).maybeSingle(); if (!settings?.enabled) return json({ error: "EduFlow AI is disabled for this school." }, 403);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id).eq("school_id", conversation.school_id); const roleSet = new Set((roles ?? []).map((r) => r.role)); const isTeacher = roleSet.has("teacher"); const isStudent = roleSet.has("student"); const isManager = roleSet.has("school_admin") || roleSet.has("principal") || roleSet.has("super_admin");
+    if (!isStudent && !isTeacher && !isManager) return json({ error: "Your account is not permitted to use EduFlow AI." }, 403); if (isStudent && !isManager && settings.student_tutor_enabled === false) return json({ error: "The student AI tutor is disabled for this school." }, 403); if (isTeacher && !isManager && settings.teacher_assistant_enabled === false && mode === "teacher-assistant") return json({ error: "The teacher AI assistant is disabled for this school." }, 403); if (!isManager && mode === "academic-insights") return json({ error: "Academic AI insights are available to school managers." }, 403); if (!isManager && mode === "report-assistant") return json({ error: "Report AI assistance is available to school managers and teachers." }, 403);
+    const { data: subject } = subjectId ? await supabase.from("subjects").select("name").eq("id", subjectId).eq("school_id", conversation.school_id).maybeSingle() : { data: null }; const subjectName = subject?.name ?? "general school subjects";
+    const apiKey = Deno.env.get("OPENAI_API_KEY"); if (!apiKey) return json({ error: "EduFlow AI is not configured yet. An administrator must add the AI provider key." }, 503);
+    const moderationResponse = await fetch("https://api.openai.com/v1/moderations", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "omni-moderation-latest", input: `${message}\n${context}`.slice(0, 20000) }) }); if (!moderationResponse.ok) return json({ error: "AI safety check is temporarily unavailable." }, 503); const moderation = await moderationResponse.json(); if (moderation.results?.[0]?.flagged) return json({ error: "I can help with safe, school-appropriate learning questions. Please rephrase your request." }, 400);
+    const { data: history } = await supabase.from("ai_messages").select("role,content").eq("conversation_id", conversationId).eq("user_id", userData.user.id).order("created_at", { ascending: true }).limit(30);
     const maxOutputTokens = Math.min(4000, Math.max(128, Number((settings as Settings).max_output_tokens ?? 900)));
-    const { data: reservation, error: reservationError } = await supabase.rpc("reserve_ai_tokens", {
-      p_school_id: conversation.school_id,
-      p_tokens: maxOutputTokens,
-    });
-    if (reservationError || reservation !== true) return json({ error: "The school's AI monthly quota has been reached. Try again later or ask an administrator to adjust the AI limit." }, 429);
-
+    const admin = createClient(url, serviceKey);
+    const { data: reservation, error: reservationError } = await admin.rpc("reserve_ai_tokens", { p_school_id: conversation.school_id, p_tokens: maxOutputTokens }); if (reservationError || reservation !== true) return json({ error: "The school's AI monthly quota has been reached. Try again later or ask an administrator to adjust the AI limit." }, 429);
     const system = `You are EduFlow AI, a safe academic assistant for secondary-school education. Use ${subjectName} context when relevant. ${modeInstruction(mode)} Keep responses clear, practical and age-appropriate. Never expose or infer sensitive personal information. Never provide sexual, hateful, dangerous, or harmful content. Do not claim to have accessed school records unless they are explicitly supplied in the context. Generated educational content must be reviewed by a teacher or administrator when used for school records.`;
-    const contextBlock = context ? `\n\nAUTHORIZED CONTEXT FOR THIS REQUEST:\n${context}` : "";
-    const priorMessages = (history ?? [])
-      .filter((m: { role: string }) => m.role === "user" || m.role === "assistant")
-      .map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content }));
-    const lastMessage = priorMessages[priorMessages.length - 1];
-    const messages = [
-      { role: "system" as const, content: system },
-      ...priorMessages,
-      ...(lastMessage?.role === "user" && lastMessage.content === message ? [] : [{ role: "user" as const, content: `${message}${contextBlock}` }]),
-    ];
-
-    const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: maxOutputTokens }),
-    });
-    if (!response.ok) {
-      await supabase.rpc("release_ai_tokens", { p_school_id: conversation.school_id, p_tokens: maxOutputTokens });
-      return json({ error: `AI provider error (${response.status})` }, 502);
-    }
-
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content ?? "I could not generate a response. Please try again.";
-    const inputTokens = Number(result.usage?.prompt_tokens ?? 0);
-    const outputTokens = Number(result.usage?.completion_tokens ?? 0);
-    const totalTokens = Number(result.usage?.total_tokens ?? inputTokens + outputTokens);
-    const estimatedCost = model.includes("gpt-4o-mini") ? ((inputTokens * 0.15 + outputTokens * 0.60) / 1000000) : 0;
-
-    const { error: finalizeError } = await supabase.rpc("finalize_ai_usage", {
-      p_school_id: conversation.school_id,
-      p_reserved_tokens: maxOutputTokens,
-      p_actual_tokens: totalTokens,
-      p_cost: estimatedCost,
-    });
-    if (finalizeError) return json({ error: "AI usage could not be finalized safely. Please try again." }, 503);
-
-    const disclosure = (settings as Settings).disclosure_text?.trim() || "AI-generated content may contain mistakes. Review important information.";
-    const assistantContent = `${content}\n\n_${disclosure}_`;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!serviceKey) return json({ error: "AI server configuration is incomplete." }, 503);
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
-
-    const { error: usageInsertError } = await admin.from("ai_usage").insert({
-      school_id: conversation.school_id,
-      user_id: userData.user.id,
-      feature: mode,
-      model,
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
-      estimated_cost: estimatedCost,
-    });
-    if (usageInsertError) return json({ error: "AI response was generated but usage could not be recorded." }, 500);
-
-    const { error: messageInsertError } = await admin.from("ai_messages").insert({
-      school_id: conversation.school_id,
-      conversation_id: conversationId,
-      user_id: userData.user.id,
-      role: "assistant",
-      content: assistantContent,
-      tokens_used: totalTokens,
-    });
-    if (messageInsertError) return json({ error: "AI response was generated but could not be saved." }, 500);
-
+    const contextBlock = context ? `\n\nAUTHORIZED CONTEXT FOR THIS REQUEST:\n${context}` : ""; const priorMessages = (history ?? []).filter((m: { role: string }) => m.role === "user" || m.role === "assistant").map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })); const lastMessage = priorMessages[priorMessages.length - 1]; const messages = [{ role: "system" as const, content: system }, ...priorMessages, ...(lastMessage?.role === "user" && lastMessage.content === message ? [] : [{ role: "user" as const, content: `${message}${contextBlock}` }])];
+    const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini"; const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: maxOutputTokens }) });
+    if (!response.ok) { await admin.rpc("release_ai_tokens", { p_school_id: conversation.school_id, p_tokens: maxOutputTokens }); return json({ error: `AI provider error (${response.status})` }, 502); }
+    const result = await response.json(); const content = result.choices?.[0]?.message?.content ?? "I could not generate a response. Please try again."; const inputTokens = Number(result.usage?.prompt_tokens ?? 0); const outputTokens = Number(result.usage?.completion_tokens ?? 0); const totalTokens = Number(result.usage?.total_tokens ?? inputTokens + outputTokens); const estimatedCost = model.includes("gpt-4o-mini") ? ((inputTokens * 0.15 + outputTokens * 0.60) / 1000000) : 0;
+    const { error: finalizeError } = await admin.rpc("finalize_ai_usage", { p_school_id: conversation.school_id, p_reserved_tokens: maxOutputTokens, p_actual_tokens: totalTokens, p_cost: estimatedCost }); if (finalizeError) { await admin.rpc("release_ai_tokens", { p_school_id: conversation.school_id, p_tokens: maxOutputTokens }); return json({ error: "AI usage could not be finalized safely. Please try again." }, 503); }
+    const disclosure = (settings as Settings).disclosure_text?.trim() || "AI-generated content may contain mistakes. Review important information."; const assistantContent = `${content}\n\n_${disclosure}_`;
+    const { error: usageInsertError } = await admin.from("ai_usage").insert({ school_id: conversation.school_id, user_id: userData.user.id, feature: mode, model, input_tokens: inputTokens, output_tokens: outputTokens, estimated_cost: estimatedCost }); if (usageInsertError) return json({ error: "AI response was generated but usage could not be recorded." }, 500);
+    const { error: messageInsertError } = await admin.from("ai_messages").insert({ school_id: conversation.school_id, conversation_id: conversationId, user_id: userData.user.id, role: "assistant", content: assistantContent, tokens_used: totalTokens }); if (messageInsertError) return json({ error: "AI response was generated but could not be saved." }, 500);
     return json({ content: assistantContent, tokens_used: totalTokens, monthly_limit: Number((settings as Settings).monthly_token_limit ?? 0) });
-  } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Unexpected AI service error" }, 500);
-  }
+  } catch (error) { return json({ error: error instanceof Error ? error.message : "Unexpected AI service error" }, 500); }
 });
