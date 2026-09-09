@@ -1,0 +1,23 @@
+name: EduFlow Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Production base URL"
+        required: false
+        default: "https://eduflow-platform-hazel.vercel.app"
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test:production
+        env:
+          EDUFLOW_BASE_URL: ${{ inputs.base_url }}
