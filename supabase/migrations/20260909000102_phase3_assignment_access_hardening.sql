@@ -1,0 +1,8 @@
+drop policy if exists assignments_select on public.assignments;
+drop policy if exists assignments_write on public.assignments;
+create policy assignments_select on public.assignments for select using(school_id=current_school_id() and(is_school_manager() or teacher_id in(select id from public.teachers where user_id=auth.uid() and school_id=current_school_id())));
+create policy assignments_write on public.assignments for all using(school_id=current_school_id() and(is_school_manager() or(teacher_id in(select id from public.teachers where user_id=auth.uid() and school_id=current_school_id()) and teacher_has_assignment(class_id,subject_id)))) with check(school_id=current_school_id() and(is_school_manager() or(teacher_id in(select id from public.teachers where user_id=auth.uid() and school_id=current_school_id()) and teacher_has_assignment(class_id,subject_id))));
+drop policy if exists assignment_submissions_select on public.assignment_submissions;
+drop policy if exists assignment_submissions_write on public.assignment_submissions;
+create policy assignment_submissions_select on public.assignment_submissions for select using(school_id=current_school_id() and(is_school_manager() or exists(select 1 from public.assignments a where a.id=assignment_id and a.teacher_id in(select id from public.teachers where user_id=auth.uid() and school_id=current_school_id()))));
+create policy assignment_submissions_write on public.assignment_submissions for all using(school_id=current_school_id() and(is_school_manager() or exists(select 1 from public.assignments a where a.id=assignment_id and a.teacher_id in(select id from public.teachers where user_id=auth.uid() and school_id=current_school_id())))) with check(school_id=current_school_id());
