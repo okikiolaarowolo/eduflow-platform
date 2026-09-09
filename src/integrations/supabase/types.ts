@@ -485,6 +485,7 @@ export type Database = {
           title: string
           updated_at: string
           weight: number
+          workflow_status: string
         }
         Insert: {
           assessment_type?: string
@@ -502,6 +503,7 @@ export type Database = {
           title: string
           updated_at?: string
           weight?: number
+          workflow_status?: string
         }
         Update: {
           assessment_type?: string
@@ -519,6 +521,7 @@ export type Database = {
           title?: string
           updated_at?: string
           weight?: number
+          workflow_status?: string
         }
         Relationships: [
           {
@@ -2202,6 +2205,10 @@ export type Database = {
       }
       is_operations_staff: { Args: never; Returns: boolean }
       is_school_manager: { Args: never; Returns: boolean }
+      publish_staff_announcement: {
+        Args: { p_audience: string; p_body: string; p_title: string }
+        Returns: string
+      }
       teacher_clock_in: {
         Args: { _note?: string }
         Returns: {

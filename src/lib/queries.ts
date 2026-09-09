@@ -26,7 +26,7 @@ export const api={
  async teacherSubjects(id:string){return unwrap<{id:string;teacher_id:string;subject_id:string}[]>(await supabase.from("teacher_subjects").select("*").eq("school_id",id))},
  async teacherClasses(id:string){return unwrap<{id:string;teacher_id:string;class_id:string;is_class_teacher:boolean}[]>(await supabase.from("teacher_classes").select("*").eq("school_id",id))},
  async classSubjects(id:string){return unwrap<{id:string;class_id:string;subject_id:string}[]>(await supabase.from("class_subjects").select("*").eq("school_id",id))},
- async assessments(id:string){return unwrap<AssessmentRow[]>(await supabase.from("assessments").select("*").eq("school_id",id).order("created_at",{ascending:false}))},
+ async assessments(id:string){return unwrap<AssessmentRow[]>(await supabase.from("assessments").select("*").eq("school_id",id).order("created_at",{ascending:false}) as unknown as {data:AssessmentRow[]|null;error:{message:string}|null})},
  async attendanceSessions(id:string){return unwrap<AttendanceSessionRow[]>(await supabase.from("attendance_sessions").select("*").eq("school_id",id).order("session_date",{ascending:false}))},
  async attendanceRecords(id:string){return unwrap<AttendanceRecordRow[]>(await supabase.from("attendance_records").select("*").eq("school_id",id))},
  async assignments(id:string){return unwrap<AssignmentRow[]>(await supabase.from("assignments").select("*").eq("school_id",id).order("created_at",{ascending:false}))},

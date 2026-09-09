@@ -53,7 +53,7 @@ function AdminPage() {
 
   const changeSubscription = useMutation({
     mutationFn: async ({ id, planId, status }: { id: string; planId?: string; status?: string }) => {
-      const patch: Record<string, string> = {};
+      const patch: { plan_id?: string; status?: string } = {};
       if (planId) patch.plan_id = planId;
       if (status) patch.status = status;
       const { error } = await supabase.from("school_subscriptions").update(patch).eq("id", id);

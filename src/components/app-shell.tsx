@@ -36,9 +36,9 @@ const NAV = [
  { to: "/audit", label: "Audit Log", icon: History, roles: SCHOOL_MANAGERS },
  { to: "/ai-tutor", label: "EduFlow AI", icon: Bot, roles: ["school_admin", "principal", "teacher"] as AppRole[] },
  { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal, roles: SCHOOL_MANAGERS },
- { to: "/notifications", label: "Notifications", icon: Bell },
+ { to: "/notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "school_admin", "principal", "secretary", "teacher"] as AppRole[] },
  { to: "/settings", label: "Settings", icon: Settings, roles: SCHOOL_MANAGERS },
- { to: "/profile", label: "My Profile", icon: UserRound },
+ { to: "/profile", label: "My Profile", icon: UserRound, roles: ["super_admin", "school_admin", "principal", "secretary", "teacher"] as AppRole[] },
 ] as const;
 export function useSchoolId() { const { profile } = useAuth(); return profile?.school_id ?? null; }
 export function useSchool() { const schoolId = useSchoolId(); return useQuery({ queryKey: ["school", schoolId], queryFn: () => api.school(schoolId!), enabled: !!schoolId }); }
