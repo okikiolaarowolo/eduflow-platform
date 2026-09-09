@@ -27,7 +27,7 @@ function AnalyticsPage() {
         supabase.from("ai_usage").select("input_tokens, output_tokens, estimated_cost").eq("school_id", schoolId!),
       ]);
       const errors = [students, teachers, classes, assessments, scores, attendance, assignments, submissions, aiUsage].filter((r) => r.error);
-      if (errors.length) throw errors[0].error;
+      if (errors.length) throw errors[0]!.error;
       const scoreRows = scores.data ?? [];
       const average = scoreRows.length ? scoreRows.reduce((sum, row) => sum + Number(row.score ?? 0), 0) / scoreRows.length : 0;
       const attendanceRows = attendance.data ?? [];
