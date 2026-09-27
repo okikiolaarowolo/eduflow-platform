@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useServerFn } from "@tanstack/react-start";
+import { sendAiMessage } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/_authenticated/ai-tutor")({ component: AiTutorPage });
 type AiMode = "tutor" | "question-generator" | "explanation" | "study-plan" | "teacher-assistant" | "report-assistant";
@@ -27,6 +29,7 @@ function AiTutorPage() {
   const [mode, setMode] = useState<AiMode>(primaryRole === "teacher" ? "teacher-assistant" : "tutor");
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState("");
+  const sendAi = useServerFn(sendAiMessage);
   const conversations = useQuery({ queryKey: ["ai-conversations", schoolId, user?.id], enabled: !!schoolId && !!user, queryFn: () => api.aiConversations(schoolId!, user!.id) });
   const subjects = useQuery({ queryKey: ["subjects", schoolId], enabled: !!schoolId, queryFn: () => api.subjects(schoolId!) });
   const messages = useQuery({ queryKey: ["ai-messages", conversationId], enabled: !!conversationId, queryFn: () => api.aiMessages(conversationId) });
@@ -49,12 +52,11 @@ function AiTutorPage() {
       const text = prompt.trim();
       const safeContext = context.trim();
       if (safeContext.length > 12000) throw new Error("Context is too long. Keep it under 12,000 characters.");
+      if (text.length > 4000) throw new Error("Message is too long. Keep it under 4,000 characters.");
       setPrompt("");
-      const { error: insertError } = await supabase.from("ai_messages").insert({ school_id: schoolId, conversation_id: conversationId, user_id: user.id, role: "user", content: text });
-      if (insertError) throw new Error(insertError.message);
-      const { data, error } = await supabase.functions.invoke("ai-tutor", { body: { conversation_id: conversationId, message: text, subject_id: subjectId || null, mode, context: safeContext } });
-      if (error) throw new Error(error.message);
-      if (!data?.content) throw new Error("The AI service returned no response");
+      const result = await sendAi({ data: { conversationId, message: text, subjectId: subjectId || null, mode, context: safeContext } });
+      await qc.invalidateQueries({ queryKey: ["ai-messages", conversationId] });
+      if (!result.ok) throw new Error(result.error);
     },
     onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["ai-messages", conversationId] }); await qc.invalidateQueries({ queryKey: ["ai-conversations", schoolId, user?.id] }); },
     onError: (error: Error) => toast.error(error.message),
