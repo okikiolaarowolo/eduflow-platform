@@ -49,7 +49,7 @@ serve(async (req) => {
       if (profilesError) return json({ error: profilesError.message }, 500);
       const ids = (profiles ?? []).map((p) => p.id);
       const { data: roles, error: rolesError } = ids.length
-        ? await admin.from("user_roles").select("user_id, role, created_at").in("user_id", ids).eq("school_id", schoolId)
+        ? await admin.from("user_roles").select("user_id, role, created_at").in("user_id", ids).eq("school_id", schoolId).in("role", ["school_admin", "principal", "secretary", "teacher"])
         : { data: [], error: null };
       if (rolesError) return json({ error: rolesError.message }, 500);
       const { data: teachers, error: teachersError } = ids.length
@@ -60,7 +60,8 @@ serve(async (req) => {
       const teacherByUser = new Map((teachers ?? []).map((t) => [t.user_id, t]));
       const rolesByUser = new Map<string, string[]>();
       for (const row of roles ?? []) rolesByUser.set(row.user_id, [...(rolesByUser.get(row.user_id) ?? []), row.role]);
-      return json({ staff: (profiles ?? []).map((profile) => ({ ...profile, roles: rolesByUser.get(profile.id) ?? [], teacher: teacherByUser.get(profile.id) ?? null })) });
+      const staffProfiles = (profiles ?? []).filter((profile) => (rolesByUser.get(profile.id) ?? []).some((role) => ["school_admin", "principal", "secretary", "teacher"].includes(role)));
+      return json({ staff: staffProfiles.map((profile) => ({ ...profile, roles: rolesByUser.get(profile.id) ?? [], teacher: teacherByUser.get(profile.id) ?? null })) });
     }
 
     if (action === "invite") {
@@ -96,8 +97,11 @@ serve(async (req) => {
         if (error) return json({ error: error.message }, 500);
       }
 
-      const { data: currentRoles } = await admin.from("user_roles").select("id, role, school_id").eq("user_id", userId).eq("school_id", schoolId);
-      const currentSchoolRole = (currentRoles ?? []).find((r) => ["school_admin", "principal", "secretary", "teacher"].includes(r.role));
+      const { data: allRoles } = await admin.from("user_roles").select("id, role, school_id").eq("user_id", userId);
+      const currentRoles = (allRoles ?? []).filter((r) => r.school_id === schoolId);
+      const currentSchoolRole = currentRoles.find((r) => ["school_admin", "principal", "secretary", "teacher"].includes(r.role));
+      if ((allRoles ?? []).some((r) => r.school_id && r.school_id !== schoolId)) return json({ error: "This account is already attached to another school." }, 409);
+      if (currentRoles.some((r) => r.role === "student" || r.role === "parent")) return json({ error: "This account is already a student or parent account and cannot be converted into staff." }, 409);
       if (currentSchoolRole?.role === "school_admin") return json({ error: "A school administrator account cannot be reassigned from Staff Management." }, 400);
 
       if (currentSchoolRole) {
