@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, Download, Loader2, Plus, Receipt, Search } from "lucide-react";
+import { Banknote, Download, Loader2, Plus, Receipt, Search, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, EmptyState, useSchoolId } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -13,22 +13,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { api } from "@/lib/queries";
+import { api, type StudentRow } from "@/lib/queries";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/finance")({ component: FinancePage });
 
-type FeeStructure = { id: string; name: string; description: string | null; amount: number; currency: string; class_id: string | null; due_date: string | null; is_active: boolean };
-type StudentFee = { id: string; student_id: string; fee_structure_id: string | null; title: string; amount_due: number; amount_paid: number; status: string; due_date: string | null };
-type Payment = { id: string; student_fee_id: string; student_id: string; amount: number; method: string; reference: string | null; receipt_number: string; paid_at: string; note: string | null };
+type FeeType = { id: string; name: string; description: string | null; amount: number; frequency: string; is_active: boolean };
+type Session = { id: string; name: string; is_current: boolean };
+type Term = { id: string; name: string; session_id: string; is_current: boolean };
+type Assignment = { id: string; student_id: string; fee_type_id: string | null; session_id: string | null; term_id: string | null; amount_due: number; due_date: string | null; status: string; created_at: string };
+type Payment = { id: string; fee_assignment_id: string; student_id: string; amount: number; payment_date: string; method: string; reference: string | null; receipt_number: string; note: string | null };
 
+const money = (n: number) => `₦${Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 function csv(name: string, rows: string[][]) {
   const text = rows.map((r) => r.map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+  const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
-const money = (n: number) => `₦${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function FinancePage() {
   const schoolId = useSchoolId();
@@ -38,221 +39,173 @@ function FinancePage() {
 
   const students = useQuery({ queryKey: ["students", schoolId], enabled: !!schoolId && canManage, queryFn: () => api.students(schoolId!) });
   const classes = useQuery({ queryKey: ["classes", schoolId], enabled: !!schoolId && canManage, queryFn: () => api.classes(schoolId!) });
-  const structures = useQuery({
-    queryKey: ["fee-structures", schoolId], enabled: !!schoolId && canManage,
+  const sessions = useQuery({ queryKey: ["sessions", schoolId], enabled: !!schoolId && canManage, queryFn: () => api.sessions(schoolId!) });
+  const terms = useQuery({ queryKey: ["terms", schoolId], enabled: !!schoolId && canManage, queryFn: () => api.terms(schoolId!) });
+  const feeTypes = useQuery({
+    queryKey: ["fee-types", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_structures").select("id,name,description,amount,currency,class_id,due_date,is_active").eq("school_id", schoolId!).order("name");
-      if (error) throw new Error(error.message);
-      return (data ?? []) as FeeStructure[];
+      const { data, error } = await supabase.from("fee_types").select("id,name,description,amount,frequency,is_active").eq("school_id", schoolId!).order("name");
+      if (error) throw new Error(error.message); return (data ?? []) as FeeType[];
     },
   });
-  const charges = useQuery({
-    queryKey: ["student-fees", schoolId], enabled: !!schoolId && canManage,
+  const assignments = useQuery({
+    queryKey: ["fee-assignments", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("student_fees").select("id,student_id,fee_structure_id,title,amount_due,amount_paid,status,due_date").eq("school_id", schoolId!).order("created_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as StudentFee[];
+      const { data, error } = await supabase.from("fee_assignments").select("id,student_id,fee_type_id,session_id,term_id,amount_due,due_date,status,created_at").eq("school_id", schoolId!).order("created_at", { ascending: false });
+      if (error) throw new Error(error.message); return (data ?? []) as Assignment[];
     },
   });
   const payments = useQuery({
     queryKey: ["fee-payments", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_payments").select("id,student_fee_id,student_id,amount,method,reference,receipt_number,paid_at,note").eq("school_id", schoolId!).order("paid_at", { ascending: false });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as Payment[];
+      const { data, error } = await supabase.from("fee_payments").select("id,fee_assignment_id,student_id,amount,payment_date,method,reference,receipt_number,note").eq("school_id", schoolId!).order("payment_date", { ascending: false });
+      if (error) throw new Error(error.message); return (data ?? []) as Payment[];
     },
   });
 
-  const [fee, setFee] = useState({ name: "", amount: "", classId: "all", dueDate: "", description: "" });
-  const [assign, setAssign] = useState({ structureId: "", target: "student", studentId: "", classId: "" });
-  const [payment, setPayment] = useState({ chargeId: "", amount: "", method: "cash", reference: "", note: "" });
-  const [search, setSearch] = useState("");
+  const currentSession = (sessions.data ?? []).find((s) => s.is_current) ?? sessions.data?.[0];
+  const currentTerm = (terms.data ?? []).find((t) => t.is_current && (!currentSession || t.session_id === currentSession.id)) ?? (terms.data ?? []).find((t) => t.session_id === currentSession?.id) ?? terms.data?.[0];
 
-  const createStructure = useMutation({
+  const [filters, setFilters] = useState({ sessionId: "", termId: "", classId: "", status: "all", search: "" });
+  const sessionId = filters.sessionId || currentSession?.id || "";
+  const termId = filters.termId || currentTerm?.id || "";
+  const filteredTerms = (terms.data ?? []).filter((t) => !sessionId || t.session_id === sessionId);
+
+  const [charge, setCharge] = useState({ studentId: "", feeTypeId: "none", title: "", amount: "", sessionId: "", termId: "", dueDate: "" });
+  const [feeType, setFeeType] = useState({ name: "", amount: "", frequency: "term", description: "" });
+  const [payment, setPayment] = useState({ assignmentId: "", amount: "", method: "cash", reference: "", note: "" });
+  const [studentSearch, setStudentSearch] = useState("");
+
+  const createFeeType = useMutation({
     mutationFn: async () => {
-      if (!schoolId || !fee.name.trim() || !fee.amount || Number(fee.amount) <= 0) throw new Error("Fee name and a positive amount are required");
-      const { error } = await supabase.from("fee_structures").insert({
-        school_id: schoolId, name: fee.name.trim(), amount: Number(fee.amount),
-        class_id: fee.classId === "all" ? null : fee.classId,
-        due_date: fee.dueDate || null, description: fee.description.trim() || null,
-      });
+      if (!schoolId || !feeType.name.trim() || Number(feeType.amount) <= 0) throw new Error("Fee name and a positive amount are required");
+      const { error } = await supabase.from("fee_types").insert({ school_id: schoolId, name: feeType.name.trim(), amount: Number(feeType.amount), frequency: feeType.frequency, description: feeType.description.trim() || null });
       if (error) throw new Error(error.message);
     },
-    onSuccess: async () => { setFee({ name: "", amount: "", classId: "all", dueDate: "", description: "" }); toast.success("Fee type created"); await qc.invalidateQueries({ queryKey: ["fee-structures", schoolId] }); },
+    onSuccess: async () => { setFeeType({ name: "", amount: "", frequency: "term", description: "" }); toast.success("Fee type created"); await qc.invalidateQueries({ queryKey: ["fee-types", schoolId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const assignFee = useMutation({
+  const addCharge = useMutation({
     mutationFn: async () => {
-      if (!schoolId || !assign.structureId) throw new Error("Select a fee type");
-      const structure = (structures.data ?? []).find((s) => s.id === assign.structureId);
-      if (!structure) throw new Error("Fee type not found");
-      const targets = assign.target === "class"
-        ? (students.data ?? []).filter((s) => !s.is_archived && s.class_id === assign.classId)
-        : (students.data ?? []).filter((s) => s.id === assign.studentId);
-      if (!targets.length) throw new Error("No students match this selection");
-      const existing = new Set((charges.data ?? []).filter((c) => c.fee_structure_id === structure.id).map((c) => c.student_id));
-      const rows = targets.filter((s) => !existing.has(s.id)).map((s) => ({
-        school_id: schoolId, student_id: s.id, fee_structure_id: structure.id, title: structure.name,
-        amount_due: Number(structure.amount), due_date: structure.due_date,
-      }));
-      if (!rows.length) throw new Error("These students already have this fee assigned");
-      const { error } = await supabase.from("student_fees").insert(rows);
+      if (!schoolId || !charge.studentId) throw new Error("Select a student");
+      const selectedSession = charge.sessionId || sessionId;
+      const selectedTerm = charge.termId || termId;
+      if (!selectedSession || !selectedTerm) throw new Error("Select an academic session and term");
+      const amount = Number(charge.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid fee amount");
+      const type = charge.feeTypeId !== "none" ? (feeTypes.data ?? []).find((f) => f.id === charge.feeTypeId) : null;
+      const title = charge.title.trim() || type?.name?.trim();
+      if (!title) throw new Error("Enter a fee name or choose a fee type");
+      const { error } = await supabase.from("fee_assignments").insert({ school_id: schoolId, student_id: charge.studentId, fee_type_id: type?.id ?? null, session_id: selectedSession, term_id: selectedTerm, amount_due: amount, due_date: charge.dueDate || null });
       if (error) throw new Error(error.message);
-      return rows.length;
     },
-    onSuccess: async (count) => { setAssign({ structureId: "", target: "student", studentId: "", classId: "" }); toast.success(`Fee assigned to ${count} student(s)`); await qc.invalidateQueries({ queryKey: ["student-fees", schoolId] }); },
+    onSuccess: async () => { setCharge({ studentId: "", feeTypeId: "none", title: "", amount: "", sessionId: "", termId: "", dueDate: "" }); toast.success("Student fee charge added"); await qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const recordPayment = useMutation({
     mutationFn: async () => {
-      if (!schoolId || !payment.chargeId || !payment.amount || Number(payment.amount) <= 0) throw new Error("Select an outstanding fee and enter a valid amount");
-      const charge = (charges.data ?? []).find((c) => c.id === payment.chargeId);
-      if (!charge) throw new Error("Fee charge not found");
-      const balance = Number(charge.amount_due) - Number(charge.amount_paid);
-      if (Number(payment.amount) > balance + 0.0001) throw new Error("Payment exceeds the outstanding balance");
-      const { error } = await supabase.from("fee_payments").insert({
-        school_id: schoolId, student_fee_id: charge.id, student_id: charge.student_id,
-        amount: Number(payment.amount), method: payment.method,
-        reference: payment.reference.trim() || null, note: payment.note.trim() || null, receipt_number: "",
-      });
+      if (!schoolId || !payment.assignmentId) throw new Error("Select an outstanding fee");
+      const a = (assignments.data ?? []).find((x) => x.id === payment.assignmentId); if (!a) throw new Error("Fee charge not found");
+      const paid = (payments.data ?? []).filter((p) => p.fee_assignment_id === a.id).reduce((sum, p) => sum + Number(p.amount), 0);
+      const amount = Number(payment.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid payment amount");
+      const balance = Math.max(Number(a.amount_due) - paid, 0);
+      if (amount > balance + 0.0001) throw new Error(`Payment exceeds the outstanding balance of ${money(balance)}`);
+      const { error } = await supabase.from("fee_payments").insert({ school_id: schoolId, fee_assignment_id: a.id, student_id: a.student_id, amount, method: payment.method, reference: payment.reference.trim() || null, note: payment.note.trim() || null, receipt_number: "" });
       if (error) throw new Error(error.message);
     },
-    onSuccess: async () => {
-      setPayment({ chargeId: "", amount: "", method: "cash", reference: "", note: "" });
-      toast.success("Payment recorded");
-      await Promise.all([qc.invalidateQueries({ queryKey: ["fee-payments", schoolId] }), qc.invalidateQueries({ queryKey: ["student-fees", schoolId] })]);
-    },
+    onSuccess: async () => { setPayment({ assignmentId: "", amount: "", method: "cash", reference: "", note: "" }); toast.success("Payment recorded and balance updated"); await Promise.all([qc.invalidateQueries({ queryKey: ["fee-payments", schoolId] }), qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] })]); },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const studentMap = useMemo(() => new Map((students.data ?? []).map((s) => [s.id, s])), [students.data]);
+  const feeTypeMap = useMemo(() => new Map((feeTypes.data ?? []).map((f) => [f.id, f])), [feeTypes.data]);
+  const classMap = useMemo(() => new Map((classes.data ?? []).map((c) => [c.id, c])), [classes.data]);
+  const paymentMap = useMemo(() => {
+    const m = new Map<string, number>(); for (const p of payments.data ?? []) m.set(p.fee_assignment_id, (m.get(p.fee_assignment_id) ?? 0) + Number(p.amount)); return m;
+  }, [payments.data]);
+
   const rows = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return (charges.data ?? []).map((c) => {
-      const student = (students.data ?? []).find((x) => x.id === c.student_id);
-      const paid = Number(c.amount_paid);
-      return {
-        ...c, paid,
-        studentName: student ? `${student.first_name} ${student.last_name}` : "Unknown student",
-        studentCode: student?.student_id ?? "",
-        balance: Math.max(Number(c.amount_due) - paid, 0),
-      };
-    }).filter((r) => !s || `${r.studentName} ${r.studentCode} ${r.title}`.toLowerCase().includes(s));
-  }, [charges.data, students.data, search]);
+    const q = filters.search.trim().toLowerCase();
+    return (assignments.data ?? []).map((a) => {
+      const s = studentMap.get(a.student_id); const paid = paymentMap.get(a.id) ?? 0; const balance = Math.max(Number(a.amount_due) - paid, 0);
+      const status = balance <= 0.009 ? "paid" : paid > 0 ? "partial" : "unpaid";
+      return { ...a, paid, balance, status, student: s, feeName: feeTypeMap.get(a.fee_type_id ?? "")?.name ?? "Custom fee", className: s?.class_id ? classMap.get(s.class_id)?.name ?? "" : "" };
+    }).filter((r) => (!sessionId || r.session_id === sessionId) && (!termId || r.term_id === termId) && (!filters.classId || r.student?.class_id === filters.classId) && (filters.status === "all" || r.status === filters.status) && (!q || `${r.student?.first_name ?? ""} ${r.student?.last_name ?? ""} ${r.student?.student_id ?? ""} ${r.feeName}`.toLowerCase().includes(q)));
+  }, [assignments.data, studentMap, paymentMap, feeTypeMap, classMap, filters, sessionId, termId]);
+
+  const studentBalances = useMemo(() => {
+    const m = new Map<string, { student: StudentRow; due: number; paid: number; balance: number }>();
+    for (const r of rows) { if (!r.student) continue; const cur = m.get(r.student.id) ?? { student: r.student, due: 0, paid: 0, balance: 0 }; cur.due += Number(r.amount_due); cur.paid += r.paid; cur.balance += r.balance; m.set(r.student.id, cur); }
+    return [...m.values()].map((x) => ({ ...x, status: x.balance <= 0.009 ? "paid" : x.paid > 0 ? "partial" : "unpaid" }));
+  }, [rows]);
 
   const totals = rows.reduce((x, r) => ({ due: x.due + Number(r.amount_due), paid: x.paid + r.paid, balance: x.balance + r.balance }), { due: 0, paid: 0, balance: 0 });
-  const outstanding = rows.filter((r) => r.balance > 0);
-  const loading = students.isLoading || structures.isLoading || charges.isLoading || payments.isLoading;
+  const owingStudents = studentBalances.filter((s) => s.balance > 0.009);
+  const paidStudents = studentBalances.filter((s) => s.status === "paid");
+  const partialStudents = studentBalances.filter((s) => s.status === "partial");
+  const unpaidStudents = studentBalances.filter((s) => s.status === "unpaid");
+  const outstandingAssignments = rows.filter((r) => r.balance > 0.009);
+  const loading = students.isLoading || classes.isLoading || sessions.isLoading || terms.isLoading || feeTypes.isLoading || assignments.isLoading || payments.isLoading;
 
   if (!canManage) return <AppShell title="Finance" description="Fees and payments"><EmptyState icon={Banknote} title="Finance access required" description="Finance is available to school managers and the Secretary." /></AppShell>;
   if (loading) return <AppShell title="Finance"><div className="flex min-h-64 items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div></AppShell>;
-  if (charges.isError || structures.isError) return <AppShell title="Finance"><p className="text-sm text-destructive">Finance records could not be loaded. Refresh and try again.</p></AppShell>;
+  if ([assignments, payments, feeTypes].some((q) => q.isError)) return <AppShell title="Finance"><p className="text-sm text-destructive">Finance records could not be loaded. Refresh and try again.</p></AppShell>;
 
-  return (
-    <AppShell title="Finance" description="Fees, payments, outstanding balances and receipts">
-      <div className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-4">
-          <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Expected</p><p className="mt-1 text-2xl font-bold">{money(totals.due)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Collected</p><p className="mt-1 text-2xl font-bold">{money(totals.paid)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Outstanding</p><p className="mt-1 text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card>
-          <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Payments</p><p className="mt-1 text-2xl font-bold">{(payments.data ?? []).length}</p></CardContent></Card>
-        </div>
+  const selectedStudent = studentMap.get(charge.studentId);
+  const selectedBalance = payment.assignmentId ? rows.find((r) => r.id === payment.assignmentId) : undefined;
 
-        <Tabs defaultValue="balances">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="balances">Balances</TabsTrigger>
-            <TabsTrigger value="fees">Fee types</TabsTrigger>
-            <TabsTrigger value="assign">Assign fees</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="balances" className="space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" placeholder="Search student or fee" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-              <Button variant="outline" onClick={() => csv("eduflow-fee-status.csv", [["Student ID", "Student", "Fee", "Due", "Paid", "Balance", "Status"], ...rows.map((r) => [r.studentCode, r.studentName, r.title, Number(r.amount_due).toFixed(2), r.paid.toFixed(2), r.balance.toFixed(2), r.status])])}><Download className="size-4" />Export CSV</Button>
-            </div>
-            {rows.length === 0 ? <EmptyState icon={Receipt} title="No fee charges yet" description="Create a fee type and assign it to students to start tracking balances." /> : (
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left"><th className="p-3">Student</th><th className="p-3">Fee</th><th className="p-3">Due</th><th className="p-3">Paid</th><th className="p-3">Balance</th><th className="p-3">Status</th></tr></thead>
-                  <tbody>{rows.map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
-                      <td className="p-3"><p className="font-medium">{r.studentName}</p><p className="text-xs text-muted-foreground">{r.studentCode}</p></td>
-                      <td className="p-3">{r.title}</td>
-                      <td className="p-3">{money(Number(r.amount_due))}</td>
-                      <td className="p-3">{money(r.paid)}</td>
-                      <td className="p-3 font-semibold">{money(r.balance)}</td>
-                      <td className="p-3"><Badge variant={r.status === "paid" ? "default" : r.status === "partial" ? "secondary" : "destructive"}>{r.status}</Badge></td>
-                    </tr>))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="fees">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Create fee type</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div><Label>Name</Label><Input value={fee.name} onChange={(e) => setFee({ ...fee, name: e.target.value })} placeholder="Tuition" /></div>
-                <div><Label>Amount</Label><Input type="number" min="0" step="0.01" value={fee.amount} onChange={(e) => setFee({ ...fee, amount: e.target.value })} placeholder="150000" /></div>
-                <div><Label>Applies to</Label><Select value={fee.classId} onValueChange={(v) => setFee({ ...fee, classId: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All classes</SelectItem>{(classes.data ?? []).filter((c) => !c.is_archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>Due date</Label><Input type="date" value={fee.dueDate} onChange={(e) => setFee({ ...fee, dueDate: e.target.value })} /></div>
-                <Textarea value={fee.description} onChange={(e) => setFee({ ...fee, description: e.target.value })} placeholder="Description (optional)" />
-                <div className="flex items-end"><Button onClick={() => createStructure.mutate()} disabled={createStructure.isPending}>{createStructure.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Create fee type</Button></div>
-              </CardContent>
-            </Card>
-            <div className="mt-4 space-y-2">
-              {(structures.data ?? []).length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No fee types yet.</p> : (structures.data ?? []).map((f) => (
-                <div key={f.id} className="flex items-center justify-between rounded-xl border p-4">
-                  <div><p className="font-medium">{f.name}</p><p className="text-xs text-muted-foreground">{money(Number(f.amount))}{f.class_id ? ` · ${(classes.data ?? []).find((c) => c.id === f.class_id)?.name ?? "Class"}` : " · All classes"}{f.due_date ? ` · due ${f.due_date}` : ""}</p></div>
-                  <Badge variant={f.is_active ? "default" : "secondary"}>{f.is_active ? "Active" : "Inactive"}</Badge>
-                </div>))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="assign">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Assign a fee</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <Select value={assign.structureId} onValueChange={(v) => setAssign({ ...assign, structureId: v })}><SelectTrigger><SelectValue placeholder="Fee type" /></SelectTrigger><SelectContent>{(structures.data ?? []).filter((f) => f.is_active).map((f) => <SelectItem key={f.id} value={f.id}>{f.name} · {money(Number(f.amount))}</SelectItem>)}</SelectContent></Select>
-                <Select value={assign.target} onValueChange={(v) => setAssign({ ...assign, target: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="student">One student</SelectItem><SelectItem value="class">Whole class</SelectItem></SelectContent></Select>
-                {assign.target === "student"
-                  ? <Select value={assign.studentId} onValueChange={(v) => setAssign({ ...assign, studentId: v })}><SelectTrigger><SelectValue placeholder="Student" /></SelectTrigger><SelectContent>{(students.data ?? []).filter((s) => !s.is_archived).map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name} · {s.student_id}</SelectItem>)}</SelectContent></Select>
-                  : <Select value={assign.classId} onValueChange={(v) => setAssign({ ...assign, classId: v })}><SelectTrigger><SelectValue placeholder="Class" /></SelectTrigger><SelectContent>{(classes.data ?? []).filter((c) => !c.is_archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>}
-                <div className="flex items-end"><Button onClick={() => assignFee.mutate()} disabled={assignFee.isPending}>{assignFee.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Assign fee</Button></div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="payments">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Record payment</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <Select value={payment.chargeId} onValueChange={(v) => { const r = rows.find((x) => x.id === v); setPayment({ ...payment, chargeId: v, amount: r ? String(r.balance) : payment.amount }); }}>
-                  <SelectTrigger><SelectValue placeholder="Outstanding fee" /></SelectTrigger>
-                  <SelectContent>{outstanding.map((r) => <SelectItem key={r.id} value={r.id}>{r.studentName} · {r.title} · {money(r.balance)} due</SelectItem>)}</SelectContent>
-                </Select>
-                <Input type="number" min="0" step="0.01" value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })} placeholder="Payment amount" />
-                <Select value={payment.method} onValueChange={(v) => setPayment({ ...payment, method: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="bank_transfer">Bank transfer</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="pos">POS</SelectItem><SelectItem value="online">Online</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select>
-                <Input value={payment.reference} onChange={(e) => setPayment({ ...payment, reference: e.target.value })} placeholder="Reference (optional)" />
-                <Textarea value={payment.note} onChange={(e) => setPayment({ ...payment, note: e.target.value })} placeholder="Note (optional)" />
-                <div className="flex items-end"><Button onClick={() => recordPayment.mutate()} disabled={recordPayment.isPending}>{recordPayment.isPending ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}Record payment</Button></div>
-              </CardContent>
-            </Card>
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => csv("eduflow-payment-history.csv", [["Receipt", "Student ID", "Student", "Amount", "Paid at", "Method", "Reference"], ...(payments.data ?? []).map((p) => { const s = (students.data ?? []).find((x) => x.id === p.student_id); return [p.receipt_number, s?.student_id ?? "", s ? `${s.first_name} ${s.last_name}` : "", Number(p.amount).toFixed(2), new Date(p.paid_at).toISOString(), p.method, p.reference ?? ""]; })])}><Download className="size-4" />Export payment history</Button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {(payments.data ?? []).length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No payments recorded yet.</p> : (payments.data ?? []).slice(0, 40).map((p) => {
-                const s = (students.data ?? []).find((x) => x.id === p.student_id);
-                return <div key={p.id} className="flex items-center justify-between rounded-xl border p-4"><div><p className="font-medium">{s ? `${s.first_name} ${s.last_name}` : "Unknown student"}</p><p className="text-xs text-muted-foreground">{p.receipt_number} · {new Date(p.paid_at).toLocaleString()} · {p.method}</p></div><p className="font-semibold">{money(Number(p.amount))}</p></div>;
-              })}
-            </div>
-          </TabsContent>
-        </Tabs>
+  return <AppShell title="Finance" description="Record student fees, payments and automatically calculate parent balances">
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total expected</p><p className="mt-1 text-2xl font-bold">{money(totals.due)}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total collected</p><p className="mt-1 text-2xl font-bold">{money(totals.paid)}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total outstanding</p><p className="mt-1 text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card>
+        <Card><CardContent className="p-5"><p className="text-sm text-muted-foreground">Students owing</p><p className="mt-1 text-2xl font-bold">{owingStudents.length}</p></CardContent></Card>
       </div>
-    </AppShell>
-  );
+
+      <Card className="border-primary/20 bg-primary/[0.03]"><CardContent className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Secretary workflow</p><p className="text-sm text-muted-foreground">Select a student, enter or assign their fee, then record payments. EduFlow calculates the balance automatically — no manual parent-owing calculation.</p></div><Button onClick={() => document.getElementById("add-charge")?.scrollIntoView({ behavior: "smooth" })}><Plus className="size-4" />Add student fee</Button></CardContent></Card>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.5fr]">
+        <Select value={sessionId} onValueChange={(v) => setFilters({ ...filters, sessionId: v, termId: "" })}><SelectTrigger><SelectValue placeholder="Academic session" /></SelectTrigger><SelectContent>{(sessions.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}{s.is_current ? " · Current" : ""}</SelectItem>)}</SelectContent></Select>
+        <Select value={termId} onValueChange={(v) => setFilters({ ...filters, termId: v })}><SelectTrigger><SelectValue placeholder="Term" /></SelectTrigger><SelectContent>{filteredTerms.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}{t.is_current ? " · Current" : ""}</SelectItem>)}</SelectContent></Select>
+        <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" placeholder="Search student, admission ID or fee" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} /></div>
+      </div>
+
+      <Tabs defaultValue="balances">
+        <TabsList className="flex-wrap"><TabsTrigger value="balances">Balances</TabsTrigger><TabsTrigger value="add">Add student fee</TabsTrigger><TabsTrigger value="payments">Payments</TabsTrigger><TabsTrigger value="fee-types">Fee types</TabsTrigger></TabsList>
+        <TabsContent value="balances" className="space-y-4">
+          <div className="flex flex-wrap gap-2"><Badge variant="default">Paid {paidStudents.length}</Badge><Badge variant="secondary">Partial {partialStudents.length}</Badge><Badge variant="destructive">Unpaid {unpaidStudents.length}</Badge><Badge variant="outline">Owing {owingStudents.length}</Badge><Button variant="outline" className="ml-auto" onClick={() => csv("eduflow-student-fee-balances.csv", [["Student ID","Student","Class","Expected","Paid","Outstanding","Status"], ...studentBalances.map((r) => [r.student.student_id, `${r.student.first_name} ${r.student.last_name}`, r.student.class_id ? classMap.get(r.student.class_id)?.name ?? "" : "", r.due.toFixed(2), r.paid.toFixed(2), r.balance.toFixed(2), r.status])])}><Download className="size-4" />Export balances</Button></div>
+          {studentBalances.length === 0 ? <EmptyState icon={UserRound} title="No fee records for this selection" description="Add a student fee charge to start building the fee ledger." /> : <div className="overflow-x-auto rounded-xl border"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Student</th><th className="p-3">Class</th><th className="p-3">Expected</th><th className="p-3">Paid</th><th className="p-3">Outstanding</th><th className="p-3">Status</th></tr></thead><tbody>{studentBalances.map((r) => <tr key={r.student.id} className="border-b last:border-0"><td className="p-3"><p className="font-medium">{r.student.first_name} {r.student.last_name}</p><p className="text-xs text-muted-foreground">{r.student.student_id}{r.student.guardian_name ? ` · Parent: ${r.student.guardian_name}` : ""}</p></td><td className="p-3">{r.student.class_id ? classMap.get(r.student.class_id)?.name ?? "—" : "—"}</td><td className="p-3">{money(r.due)}</td><td className="p-3">{money(r.paid)}</td><td className="p-3 font-semibold">{money(r.balance)}</td><td className="p-3"><Badge variant={r.status === "paid" ? "default" : r.status === "partial" ? "secondary" : "destructive"}>{r.status}</Badge></td></tr>)}</tbody></table></div>}
+        </TabsContent>
+
+        <TabsContent value="add" id="add-charge"><Card><CardHeader><CardTitle className="text-base">Add fee to a student</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2"><Label>Find student</Label><Input value={studentSearch} onChange={(e) => setStudentSearch(e.target.value)} placeholder="Search by name or admission ID" /></div>
+          <Select value={charge.studentId} onValueChange={(v) => setCharge({ ...charge, studentId: v })}><SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger><SelectContent>{(students.data ?? []).filter((s) => !s.is_archived && (!studentSearch.trim() || `${s.first_name} ${s.last_name} ${s.student_id}`.toLowerCase().includes(studentSearch.trim().toLowerCase()))).map((s) => <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name} · {s.student_id}</SelectItem>)}</SelectContent></Select>
+          <Select value={charge.sessionId || sessionId} onValueChange={(v) => setCharge({ ...charge, sessionId: v, termId: "" })}><SelectTrigger><SelectValue placeholder="Academic session" /></SelectTrigger><SelectContent>{(sessions.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={charge.termId || termId} onValueChange={(v) => setCharge({ ...charge, termId: v })}><SelectTrigger><SelectValue placeholder="Term" /></SelectTrigger><SelectContent>{(terms.data ?? []).filter((t) => t.session_id === (charge.sessionId || sessionId)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={charge.feeTypeId} onValueChange={(v) => { const f = (feeTypes.data ?? []).find((x) => x.id === v); setCharge({ ...charge, feeTypeId: v, title: f?.name ?? charge.title, amount: f ? String(f.amount) : charge.amount }); }}><SelectTrigger><SelectValue placeholder="Existing fee type (optional)" /></SelectTrigger><SelectContent><SelectItem value="none">Custom fee</SelectItem>{(feeTypes.data ?? []).filter((f) => f.is_active).map((f) => <SelectItem key={f.id} value={f.id}>{f.name} · {money(f.amount)}</SelectItem>)}</SelectContent></Select>
+          <Input value={charge.title} onChange={(e) => setCharge({ ...charge, title: e.target.value })} placeholder="Fee name, e.g. Tuition" />
+          <Input type="number" min="0.01" step="0.01" value={charge.amount} onChange={(e) => setCharge({ ...charge, amount: e.target.value })} placeholder="Amount due" />
+          <Input type="date" value={charge.dueDate} onChange={(e) => setCharge({ ...charge, dueDate: e.target.value })} />
+          {selectedStudent && <div className="rounded-lg border bg-muted/30 p-3 text-sm sm:col-span-2"><p className="font-medium">{selectedStudent.first_name} {selectedStudent.last_name}</p><p className="text-muted-foreground">{selectedStudent.student_id} · Parent/Guardian: {selectedStudent.guardian_name || "Not recorded"}{selectedStudent.guardian_phone ? ` · ${selectedStudent.guardian_phone}` : ""}</p></div>}
+          <div className="sm:col-span-2"><Button onClick={() => addCharge.mutate()} disabled={addCharge.isPending}>{addCharge.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Add fee charge</Button></div>
+        </CardContent></Card></TabsContent>
+
+        <TabsContent value="payments" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Record a payment</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
+          <Select value={payment.assignmentId} onValueChange={(v) => { const r = rows.find((x) => x.id === v); setPayment({ ...payment, assignmentId: v, amount: r ? String(r.balance) : "" }); }}><SelectTrigger><SelectValue placeholder="Student fee / outstanding charge" /></SelectTrigger><SelectContent>{outstandingAssignments.map((r) => <SelectItem key={r.id} value={r.id}>{r.student ? `${r.student.first_name} ${r.student.last_name}` : "Student"} · {r.feeName} · {money(r.balance)} outstanding</SelectItem>)}</SelectContent></Select>
+          <Input type="number" min="0.01" step="0.01" value={payment.amount} onChange={(e) => setPayment({ ...payment, amount: e.target.value })} placeholder="Payment amount" />
+          <Select value={payment.method} onValueChange={(v) => setPayment({ ...payment, method: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="bank_transfer">Bank transfer</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="pos">POS</SelectItem><SelectItem value="online">Online</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select>
+          <Input value={payment.reference} onChange={(e) => setPayment({ ...payment, reference: e.target.value })} placeholder="Payment reference (optional)" />
+          {selectedBalance && <div className="rounded-lg border bg-muted/30 p-3 text-sm sm:col-span-2"><p>Outstanding before payment: <strong>{money(selectedBalance.balance)}</strong></p><p className="text-muted-foreground">The system will reject a payment greater than the current balance.</p></div>}
+          <Textarea className="sm:col-span-2" value={payment.note} onChange={(e) => setPayment({ ...payment, note: e.target.value })} placeholder="Payment note (optional)" />
+          <div><Button onClick={() => recordPayment.mutate()} disabled={recordPayment.isPending}>{recordPayment.isPending ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}Record payment</Button></div>
+        </CardContent></Card><div className="flex justify-end"><Button variant="outline" onClick={() => csv("eduflow-payment-history.csv", [["Receipt","Student","Amount","Date","Method","Reference"], ...(payments.data ?? []).map((p) => { const s = studentMap.get(p.student_id); return [p.receipt_number, s ? `${s.first_name} ${s.last_name}` : "", Number(p.amount).toFixed(2), new Date(p.payment_date).toISOString(), p.method, p.reference ?? ""]; })])}><Download className="size-4" />Export payment history</Button></div></TabsContent>
+
+        <TabsContent value="fee-types"><Card><CardHeader><CardTitle className="text-base">Fee types</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><div><Label>Name</Label><Input value={feeType.name} onChange={(e) => setFeeType({ ...feeType, name: e.target.value })} placeholder="Tuition" /></div><div><Label>Default amount</Label><Input type="number" min="0.01" step="0.01" value={feeType.amount} onChange={(e) => setFeeType({ ...feeType, amount: e.target.value })} placeholder="150000" /></div><div><Label>Frequency</Label><Select value={feeType.frequency} onValueChange={(v) => setFeeType({ ...feeType, frequency: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="one_time">One time</SelectItem><SelectItem value="term">Term</SelectItem><SelectItem value="session">Session</SelectItem><SelectItem value="monthly">Monthly</SelectItem></SelectContent></Select></div><div><Label>Description</Label><Input value={feeType.description} onChange={(e) => setFeeType({ ...feeType, description: e.target.value })} placeholder="Optional" /></div><div><Button onClick={() => createFeeType.mutate()} disabled={createFeeType.isPending}>{createFeeType.isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}Create fee type</Button></div></CardContent></Card><div className="mt-4 space-y-2">{(feeTypes.data ?? []).map((f) => <div key={f.id} className="flex items-center justify-between rounded-xl border p-4"><div><p className="font-medium">{f.name}</p><p className="text-xs text-muted-foreground">{money(f.amount)} · {f.frequency}</p></div><Badge variant={f.is_active ? "default" : "secondary"}>{f.is_active ? "Active" : "Inactive"}</Badge></div>)}</div></TabsContent>
+      </Tabs>
+    </div>
+  </AppShell>;
 }
