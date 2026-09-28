@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/finance")({ component: Fin
 type FeeType = { id: string; name: string; description: string | null; amount: number; frequency: string; is_active: boolean };
 type Session = { id: string; name: string; is_current: boolean };
 type Term = { id: string; name: string; session_id: string; is_current: boolean };
-type Assignment = { id: string; student_id: string; fee_type_id: string | null; session_id: string | null; term_id: string | null; amount_due: number; due_date: string | null; status: string; created_at: string };
+type Assignment = { id: string; student_id: string; title: string; fee_type_id: string | null; session_id: string | null; term_id: string | null; amount_due: number; due_date: string | null; status: string; created_at: string };
 type Payment = { id: string; fee_assignment_id: string; student_id: string; amount: number; payment_date: string; method: string; reference: string | null; receipt_number: string; note: string | null };
 
 const money = (n: number) => `₦${Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -51,7 +51,7 @@ function FinancePage() {
   const assignments = useQuery({
     queryKey: ["fee-assignments", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_assignments").select("id,student_id,fee_type_id,session_id,term_id,amount_due,due_date,status,created_at").eq("school_id", schoolId!).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("fee_assignments").select("id,student_id,title,fee_type_id,session_id,term_id,amount_due,due_date,status,created_at").eq("school_id", schoolId!).order("created_at", { ascending: false });
       if (error) throw new Error(error.message); return (data ?? []) as Assignment[];
     },
   });
@@ -97,7 +97,7 @@ function FinancePage() {
       const type = charge.feeTypeId !== "none" ? (feeTypes.data ?? []).find((f) => f.id === charge.feeTypeId) : null;
       const title = charge.title.trim() || type?.name?.trim();
       if (!title) throw new Error("Enter a fee name or choose a fee type");
-      const { error } = await supabase.from("fee_assignments").insert({ school_id: schoolId, student_id: charge.studentId, fee_type_id: type?.id ?? null, session_id: selectedSession, term_id: selectedTerm, amount_due: amount, due_date: charge.dueDate || null });
+      const { error } = await supabase.from("fee_assignments").insert({ school_id: schoolId, student_id: charge.studentId, title, fee_type_id: type?.id ?? null, session_id: selectedSession, term_id: selectedTerm, amount_due: amount, due_date: charge.dueDate || null });
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => { setCharge({ studentId: "", feeTypeId: "none", title: "", amount: "", sessionId: "", termId: "", dueDate: "" }); toast.success("Student fee charge added"); await qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] }); },
@@ -132,7 +132,7 @@ function FinancePage() {
     return (assignments.data ?? []).map((a) => {
       const s = studentMap.get(a.student_id); const paid = paymentMap.get(a.id) ?? 0; const balance = Math.max(Number(a.amount_due) - paid, 0);
       const status = balance <= 0.009 ? "paid" : paid > 0 ? "partial" : "unpaid";
-      return { ...a, paid, balance, status, student: s, feeName: feeTypeMap.get(a.fee_type_id ?? "")?.name ?? "Custom fee", className: s?.class_id ? classMap.get(s.class_id)?.name ?? "" : "" };
+      return { ...a, paid, balance, status, student: s, feeName: a.title || feeTypeMap.get(a.fee_type_id ?? "")?.name || "Fee", className: s?.class_id ? classMap.get(s.class_id)?.name ?? "" : "" };
     }).filter((r) => (!sessionId || r.session_id === sessionId) && (!termId || r.term_id === termId) && (!filters.classId || r.student?.class_id === filters.classId) && (filters.status === "all" || r.status === filters.status) && (!q || `${r.student?.first_name ?? ""} ${r.student?.last_name ?? ""} ${r.student?.student_id ?? ""} ${r.feeName}`.toLowerCase().includes(q)));
   }, [assignments.data, studentMap, paymentMap, feeTypeMap, classMap, filters, sessionId, termId]);
 
