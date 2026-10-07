@@ -298,7 +298,7 @@ function StaffManagementPage() {
                   <div className="rounded-xl border bg-muted/40 p-4">
                     <p className="text-sm font-semibold">2. Senior Secondary department</p>
                     <p className="mt-1 text-xs text-muted-foreground">Choose Science, Humanities or Business for SS subjects.</p>
-                    <div className="mt-3"><Select value={form.department || undefined} onValueChange={(value) => setForm({ ...form, department: value as SubjectDepartment, subject_ids: [] })}><SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger><SelectContent>{DEPARTMENTS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="mt-3"><Select value={form.department ?? ""} onValueChange={(value) => setForm({ ...form, department: value as SubjectDepartment, subject_ids: [] })}><SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger><SelectContent>{DEPARTMENTS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>
                   </div>
                 )}
 
