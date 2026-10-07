@@ -16,7 +16,7 @@ export type AssignmentRow={id:string;school_id:string;teacher_id:string|null;cla
 export type AnnouncementRow={id:string;title:string;body:string;audience:string;published:boolean;published_at:string|null;created_at:string};
 export type TimetableRow={id:string;class_id:string;subject_id:string;teacher_id:string|null;day_of_week:number;start_time:string;end_time:string;room:string|null};
 export type ActivityRow={id:string;action:string;entity:string;description:string|null;actor_name:string|null;created_at:string};
-function unwrap<T>(res:{data:T|null;error:{message:string}|null}):T{if(res.error)throw new Error(res.error.message);return(res.data??[]) as T}
+function unwrap<T>(res:{data:unknown;error:{message:string}|null}):T{if(res.error)throw new Error(res.error.message);return(res.data??[]) as T}
 export const api={
  async school(id:string){const r=await supabase.from("schools").select("*").eq("id",id).maybeSingle();if(r.error)throw new Error(r.error.message);return r.data as unknown as SchoolRow|null},
  async classes(id:string){return unwrap<ClassRow[]>(await supabase.from("classes").select("*").eq("school_id",id).order("name"))},

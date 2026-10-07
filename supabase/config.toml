@@ -1,1 +1,3 @@
 project_id = "ravqobjueamcicpotxiw"
+[functions.staff-admin]
+verify_jwt = true

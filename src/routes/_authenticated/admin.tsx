@@ -50,7 +50,7 @@ function AdminPage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const updateSubscription = useMutation({
-    mutationFn: async ({ id, planId, status, cycle }: { id: string; planId?: string; status?: string; cycle?: string }) => { const patch: Record<string, string> = {}; if (planId) patch.plan_id = planId; if (status) patch.status = status; if (cycle) patch.billing_cycle = cycle; const { error } = await (supabase as any).from("school_subscriptions").update(patch).eq("id", id); if (error) throw new Error(error.message); },
+    mutationFn: async ({ id, planId, status, cycle }: { id: string; planId?: string; status?: string; cycle?: string }) => { const patch: Record<string, string> = {}; if (planId) patch['plan_id'] = planId; if (status) patch['status'] = status; if (cycle) patch['billing_cycle'] = cycle; const { error } = await (supabase as any).from("school_subscriptions").update(patch).eq("id", id); if (error) throw new Error(error.message); },
     onSuccess: async () => { toast.success("Subscription updated"); await qc.invalidateQueries({ queryKey: ["platform-admin"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
