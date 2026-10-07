@@ -1793,31 +1793,37 @@ export type Database = {
         Row: {
           code: string | null
           created_at: string
+          department: string | null
           description: string | null
           id: string
           is_archived: boolean
           name: string
           school_id: string
+          school_level: string
           updated_at: string
         }
         Insert: {
           code?: string | null
           created_at?: string
+          department?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean
           name: string
           school_id: string
+          school_level?: string
           updated_at?: string
         }
         Update: {
           code?: string | null
           created_at?: string
+          department?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean
           name?: string
           school_id?: string
+          school_level?: string
           updated_at?: string
         }
         Relationships: [
@@ -1982,6 +1988,7 @@ export type Database = {
       teachers: {
         Row: {
           created_at: string
+          department: string | null
           email: string | null
           first_name: string
           id: string
@@ -1992,11 +1999,13 @@ export type Database = {
           qualification: string | null
           school_id: string
           staff_id: string
+          teaching_level: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          department?: string | null
           email?: string | null
           first_name: string
           id?: string
@@ -2007,11 +2016,13 @@ export type Database = {
           qualification?: string | null
           school_id: string
           staff_id: string
+          teaching_level?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          department?: string | null
           email?: string | null
           first_name?: string
           id?: string
@@ -2022,6 +2033,7 @@ export type Database = {
           qualification?: string | null
           school_id?: string
           staff_id?: string
+          teaching_level?: string
           updated_at?: string
           user_id?: string | null
         }
