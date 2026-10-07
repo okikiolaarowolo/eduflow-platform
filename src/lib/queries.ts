@@ -1,8 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 export type ClassRow={id:string;school_id:string;name:string;level:string|null;section:string|null;capacity:number|null;is_archived:boolean};
-export type SubjectRow={id:string;school_id:string;name:string;code:string|null;description:string|null;is_archived:boolean};
+export type SubjectSchoolLevel="junior_secondary"|"senior_secondary"|"both";
+export type SubjectDepartment="science"|"humanities"|"business";
+export type SubjectRow={id:string;school_id:string;name:string;code:string|null;description:string|null;school_level:SubjectSchoolLevel;department:SubjectDepartment|null;is_archived:boolean};
 export type StudentRow={id:string;school_id:string;first_name:string;last_name:string;student_id:string;email:string|null;phone:string|null;date_of_birth:string|null;gender:string|null;class_id:string|null;admission_date:string|null;guardian_name:string|null;guardian_phone:string|null;guardian_email:string|null;photo_url:string|null;is_archived:boolean};
-export type TeacherRow={id:string;school_id:string;user_id:string|null;first_name:string;last_name:string;staff_id:string;email:string|null;phone:string|null;qualification:string|null;photo_url:string|null;is_active:boolean};
+export type TeacherTeachingLevel="junior_secondary"|"senior_secondary"|"both";
+export type TeacherRow={id:string;school_id:string;user_id:string|null;first_name:string;last_name:string;staff_id:string;email:string|null;phone:string|null;qualification:string|null;photo_url:string|null;teaching_level:TeacherTeachingLevel;department:SubjectDepartment|null;is_active:boolean};
 export type SchoolRow={id:string;name:string;slug:string;email:string|null;phone:string|null;address:string|null;website:string|null;logo_url:string|null;is_demo:boolean;onboarding_completed:boolean};
 export type SessionRow={id:string;name:string;is_current:boolean;start_date:string|null;end_date:string|null};
 export type TermRow={id:string;name:string;session_id:string;is_current:boolean;start_date?:string|null;end_date?:string|null};
