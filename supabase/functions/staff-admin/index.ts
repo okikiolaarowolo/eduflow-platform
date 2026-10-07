@@ -186,7 +186,7 @@ serve(async (req) => {
         const { error } = await admin.from("profiles").upsert({ id: userId, school_id: schoolId, full_name: fullName, email, phone: phone || null }, { onConflict: "id" });
         if (error) return json({ error: error.message }, 500);
       } else {
-        const siteUrl = Deno.env.get("SITE_URL") ?? "https://eduflow-platform-hazel.vercel.app";
+        const siteUrl = (Deno.env.get("SITE_URL") ?? "https://eduflow-platform-hazel.vercel.app").replace(/\/(auth)?\/?$/, "");
         const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, school_id: schoolId, invited_role: role }, redirectTo: `${siteUrl}/auth` });
         if (inviteError || !inviteData.user) return json({ error: inviteError?.message ?? "Could not send invitation." }, 400);
         userId = inviteData.user.id;
