@@ -113,7 +113,7 @@ function FinancePage() {
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid payment amount");
       const balance = Math.max(Number(a.amount_due) - paid, 0);
       if (amount > balance + 0.0001) throw new Error(`Payment exceeds the outstanding balance of ${money(balance)}`);
-      const { error } = await supabase.from("fee_payments").insert({ school_id: schoolId, student_fee_id: a.id, student_id: a.student_id, amount, method: payment.method, reference: payment.reference.trim() || null, note: payment.note.trim() || null });
+      const { error } = await supabase.from("fee_payments").insert({ school_id: schoolId, student_fee_id: a.id, student_id: a.student_id, amount, method: payment.method, reference: payment.reference.trim() || null, note: payment.note.trim() || null, receipt_number: "" });
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => { setPayment({ assignmentId: "", amount: "", method: "cash", reference: "", note: "" }); toast.success("Payment recorded and balance updated"); await Promise.all([qc.invalidateQueries({ queryKey: ["fee-payments", schoolId] }), qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] })]); },
