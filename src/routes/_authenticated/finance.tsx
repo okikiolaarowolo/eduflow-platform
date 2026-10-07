@@ -44,21 +44,21 @@ function FinancePage() {
   const feeTypes = useQuery({
     queryKey: ["fee-types", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_types").select("id,name,description,amount,frequency,is_active").eq("school_id", schoolId!).order("name");
-      if (error) throw new Error(error.message); return (data ?? []) as FeeType[];
+      const { data, error } = await supabase.from("fee_structures").select("id,name,description,amount,is_active").eq("school_id", schoolId!).order("name");
+      if (error) throw new Error(error.message); return (data ?? []).map((f) => ({ ...f, frequency: "term" })) as FeeType[];
     },
   });
   const assignments = useQuery({
     queryKey: ["fee-assignments", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_assignments").select("id,student_id,title,fee_type_id,session_id,term_id,amount_due,due_date,status,created_at").eq("school_id", schoolId!).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("student_fees").select("id,student_id,title,fee_type_id:fee_structure_id,session_id,term_id,amount_due,due_date,status,created_at").eq("school_id", schoolId!).order("created_at", { ascending: false });
       if (error) throw new Error(error.message); return (data ?? []) as Assignment[];
     },
   });
   const payments = useQuery({
     queryKey: ["fee-payments", schoolId], enabled: !!schoolId && canManage,
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_payments").select("id,fee_assignment_id,student_id,amount,payment_date,method,reference,receipt_number,note").eq("school_id", schoolId!).order("payment_date", { ascending: false });
+      const { data, error } = await supabase.from("fee_payments").select("id,fee_assignment_id:student_fee_id,student_id,amount,payment_date:paid_at,method,reference,receipt_number,note").eq("school_id", schoolId!).order("paid_at", { ascending: false });
       if (error) throw new Error(error.message); return (data ?? []) as Payment[];
     },
   });
@@ -79,7 +79,7 @@ function FinancePage() {
   const createFeeType = useMutation({
     mutationFn: async () => {
       if (!schoolId || !feeType.name.trim() || Number(feeType.amount) <= 0) throw new Error("Fee name and a positive amount are required");
-      const { error } = await supabase.from("fee_types").insert({ school_id: schoolId, name: feeType.name.trim(), amount: Number(feeType.amount), frequency: feeType.frequency, description: feeType.description.trim() || null });
+      const { error } = await supabase.from("fee_structures").insert({ school_id: schoolId, name: feeType.name.trim(), amount: Number(feeType.amount), description: feeType.description.trim() || null });
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => { setFeeType({ name: "", amount: "", frequency: "term", description: "" }); toast.success("Fee type created"); await qc.invalidateQueries({ queryKey: ["fee-types", schoolId] }); },
@@ -97,7 +97,7 @@ function FinancePage() {
       const type = charge.feeTypeId !== "none" ? (feeTypes.data ?? []).find((f) => f.id === charge.feeTypeId) : null;
       const title = charge.title.trim() || type?.name?.trim();
       if (!title) throw new Error("Enter a fee name or choose a fee type");
-      const { error } = await supabase.from("fee_assignments").insert({ school_id: schoolId, student_id: charge.studentId, title, fee_type_id: type?.id ?? null, session_id: selectedSession, term_id: selectedTerm, amount_due: amount, due_date: charge.dueDate || null });
+      const { error } = await supabase.from("student_fees").insert({ school_id: schoolId, student_id: charge.studentId, title, fee_structure_id: type?.id ?? null, session_id: selectedSession, term_id: selectedTerm, amount_due: amount, due_date: charge.dueDate || null });
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => { setCharge({ studentId: "", feeTypeId: "none", title: "", amount: "", sessionId: "", termId: "", dueDate: "" }); toast.success("Student fee charge added"); await qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] }); },
@@ -113,7 +113,7 @@ function FinancePage() {
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid payment amount");
       const balance = Math.max(Number(a.amount_due) - paid, 0);
       if (amount > balance + 0.0001) throw new Error(`Payment exceeds the outstanding balance of ${money(balance)}`);
-      const { error } = await supabase.from("fee_payments").insert({ school_id: schoolId, fee_assignment_id: a.id, student_id: a.student_id, amount, method: payment.method, reference: payment.reference.trim() || null, note: payment.note.trim() || null, receipt_number: "" });
+      const { error } = await supabase.from("fee_payments").insert({ school_id: schoolId, student_fee_id: a.id, student_id: a.student_id, amount, method: payment.method, reference: payment.reference.trim() || null, note: payment.note.trim() || null });
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => { setPayment({ assignmentId: "", amount: "", method: "cash", reference: "", note: "" }); toast.success("Payment recorded and balance updated"); await Promise.all([qc.invalidateQueries({ queryKey: ["fee-payments", schoolId] }), qc.invalidateQueries({ queryKey: ["fee-assignments", schoolId] })]); },
